@@ -13,11 +13,11 @@ public partial class Goal
 
     public decimal? TargetAmount { get; set; }
 
-    public decimal? CurrentAmount { get; set; }
+    public decimal? CurrentAmount { get; set; } = 0;
 
     public DateOnly? Deadline { get; set; }
 
-    public string? Status { get; set; }
+    public string? Status { get; set; } = "in-progress";
 
-    public virtual User User { get; set; } = null!;
+    public virtual User? User { get; set; } = null!;
 }
