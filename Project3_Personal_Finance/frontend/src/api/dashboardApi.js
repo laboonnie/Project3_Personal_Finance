@@ -6,4 +6,8 @@ const dashboardApi ={
     getBudgets:()=>api.get("dashboard/budgets"),
     getGoals :()=>api.get("dashboard/goals")
 }
-export default dashboardApi;
+export const getSummary = () => api.get("dashboard/summary");
+export const getJarSpending = () => api.get("dashboard/jar-spending");
+export const getMonthlyExpense = () => api.get("dashboard/monthly-expense");
+export const getBudgets = () => api.get("dashboard/budgets");
+export const getGoals = () => api.get("dashboard/goals");

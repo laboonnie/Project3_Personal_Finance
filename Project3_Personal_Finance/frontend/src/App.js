@@ -2,11 +2,14 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import AdminRoutes from "./routes/AdminRoutes";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
-import Dashboard from "./pages/dashbroard/Dashbroad";
+import Dashboard from "./pages/dashboard/Dashboard";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import Transactions from "./pages/Transactions";
+import Transactions from "./pages/Transactions/Transactions";
+import Goals from "./pages/Goals/GoalPages";
+import Debts from "./pages/Debts/DebtPages";
+import Investments from "./pages/Investments/Investments";
 
 function App() {
   return (
@@ -24,6 +27,21 @@ function App() {
         <Route path="/transactions" element={
           <ProtectedRoute>
             <Transactions />
+          </ProtectedRoute>
+        } />
+        <Route path="/goals" element={
+          <ProtectedRoute>
+            <Goals />
+          </ProtectedRoute>
+        } />
+        <Route path="/debts" element={
+          <ProtectedRoute>
+            <Debts />
+          </ProtectedRoute>
+        } />
+        <Route path="/investments" element={
+          <ProtectedRoute>
+            <Investments />
           </ProtectedRoute>
         } />
 
