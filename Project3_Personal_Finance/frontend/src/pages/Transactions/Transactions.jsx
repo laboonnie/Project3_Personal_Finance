@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
-import api from '../api/api'; // Trạm kiểm soát đã tự động nhét Token
+import api from '../../api/api'; // Trạm kiểm soát đã tự động nhét Token
 
 const Transactions = () => {
     const [transactions, setTransactions] = useState([]);
