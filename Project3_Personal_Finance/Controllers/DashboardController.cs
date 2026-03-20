@@ -3,6 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using Project3_Personal_Finance.Models;
 namespace Project3_Personal_Finance.Controllers
 {
+    [Route("api/[controller]")]
+    [ApiController]
     public class DashboardController : ControllerBase
     {
         private readonly PersonalFinanceDbContext _context;
@@ -65,6 +67,20 @@ namespace Project3_Personal_Finance.Controllers
                 g.CurrentAmount,
             }).ToListAsync();
             return Ok(goals);
+        }
+
+        [HttpGet("monthly-expense")]
+        public async Task<IActionResult> GetMonthlyExpense()
+        {
+            var data = await _context.Transactions
+                .Where(t => t.Type == "Expense")
+                .GroupBy(t => t.TransactionDate.Month)
+                .Select(g => new {
+                    month = g.Key,
+                    amount = g.Sum(x => x.Amount)
+                }).ToListAsync();
+
+            return Ok(data);
         }
     }
 }

@@ -8,7 +8,7 @@ import{getSummary,getBudgets,getGoals,getJarSpending} from "../../api/dashboardA
 
 export default function Dashboard(){
     const [summary ,setSummary]=useState({});
-    const [jar,setJars]=useState([]);
+    const [jars,setJars]=useState([]);
     const [budgets,setBudgets]=useState([]);
     const [goals,setGoals]=useState([]);
 
