@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import AdminRoutes from "./routes/AdminRoutes";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
-import Dashboard from "./pages/dashbroard/Dashbroad";
+import DashboardLinh from "./pages/dashboard/DashboardLinh"; 
 import ProtectedRoute from "./routes/ProtectedRoute";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
@@ -15,7 +15,6 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
 
-        {/* Các route cần bảo vệ */}
         <Route path="/dashboard" element={
           <ProtectedRoute>
             <Dashboard />
@@ -26,15 +25,24 @@ function App() {
             <Transactions />
           </ProtectedRoute>
         } />
+        <Route path="/admin/*" element={<AdminRoutes />} />
+        <Route path="*" element={<Navigate to="/login" replace />} />
 
-        {/* redirect trang chủ */}
-        {/* <Route path="/" element={<Navigate to="/admin/users" />} /> */}
+        {/* <Route path="/dashboard" element={
+          <ProtectedRoute>
+            <DashboardLinh />  
+          </ProtectedRoute>
+        } />
+        <Route path="/transactions" element={
+          <ProtectedRoute>
+            <Transactions />
+          </ProtectedRoute>
+        } />
 
-        {/* admin routes */}
         <Route path="/admin/*" element={<AdminRoutes />} />
 
-        {/* Default route */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="*" element={<Navigate to="/dashboard" replace />} /> */}
       </Routes>
       <ToastContainer position="top-right" autoClose={3000} />
     </BrowserRouter>

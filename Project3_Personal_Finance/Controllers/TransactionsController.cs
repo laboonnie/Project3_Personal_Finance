@@ -31,25 +31,27 @@ namespace Project3_Personal_Finance.Controllers
             return int.Parse(userIdString!);
         }
 
+        // ==================== CODE CỦA HOÀNG ====================
+
         // 1. API THÊM MỚI (POST)
         [HttpPost]
         public async Task<IActionResult> CreateTransaction(TransactionCreateDto request)
         {
-            var userId = GetCurrentUserId(); // Lấy ID an toàn từ Token
+            var userId = GetCurrentUserId();
 
             var transaction = new Transaction
             {
-                UserId = userId, // Gán cứng UserID, không cho Frontend can thiệp
+                UserId = userId,
                 Amount = request.Amount,
                 CategoryId = request.CategoryId,
-                TransactionDate = DateOnly.FromDateTime(request.TransactionDate),
+                TransactionDate = request.TransactionDate,
                 Note = request.Note,
+
             };
 
             _context.Transactions.Add(transaction);
             await _context.SaveChangesAsync();
 
-            // Trả về dữ liệu vừa tạo kèm theo thông tin Category (để React render ngay)
             var createdTransaction = await _context.Transactions
                 .Include(t => t.Category)
                 .FirstOrDefaultAsync(t => t.Id == transaction.Id);
@@ -63,22 +65,18 @@ namespace Project3_Personal_Finance.Controllers
         {
             var userId = GetCurrentUserId();
 
-            // Chỉ lấy giao dịch của chính user này
             var query = _context.Transactions
-                .Include(t => t.Category) // JOIN bảng Category để lấy tên danh mục
+                .Include(t => t.Category)
                 .Where(t => t.UserId == userId)
                 .AsQueryable();
 
-            // Lọc theo tháng/năm nếu có truyền lên
             if (month.HasValue && year.HasValue)
             {
                 query = query.Where(t => t.TransactionDate.Month == month.Value && t.TransactionDate.Year == year.Value);
             }
 
-            // Đếm tổng số bản ghi để làm phân trang
             var totalItems = await query.CountAsync();
 
-            // Xử lý phân trang và sắp xếp mới nhất lên đầu
             var transactions = await query
                 .OrderByDescending(t => t.TransactionDate)
                 .Skip((page - 1) * pageSize)
@@ -100,7 +98,6 @@ namespace Project3_Personal_Finance.Controllers
         {
             var userId = GetCurrentUserId();
 
-            // BẢO MẬT: Chỉ lấy giao dịch nếu nó thuộc về UserId hiện tại
             var transaction = await _context.Transactions
                                             .FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
 
@@ -116,10 +113,8 @@ namespace Project3_Personal_Finance.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> PutTransaction(int id, TransactionCreateDto request)
         {
-            // Lưu ý: Nên dùng DTO cho PUT để tránh Frontend gửi lên UserID giả mạo
             var userId = GetCurrentUserId();
 
-            // 1. Tìm giao dịch trong DB xem có tồn tại và đúng chủ nhân không
             var existingTransaction = await _context.Transactions
                                                     .FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
 
@@ -128,10 +123,9 @@ namespace Project3_Personal_Finance.Controllers
                 return NotFound("Cannot find transaction or you do not have permission to edit.");
             }
 
-            // 2. Cập nhật các trường được phép
             existingTransaction.Amount = request.Amount;
             existingTransaction.CategoryId = request.CategoryId;
-            existingTransaction.TransactionDate = DateOnly.FromDateTime(request.TransactionDate);
+            existingTransaction.TransactionDate = request.TransactionDate;
             existingTransaction.Note = request.Note;
 
             try
@@ -143,7 +137,7 @@ namespace Project3_Personal_Finance.Controllers
                 throw;
             }
 
-            return Ok(existingTransaction); // Trả về data mới để React cập nhật UI
+            return Ok(existingTransaction);
         }
 
         // DELETE: api/Transactions/5
@@ -152,7 +146,6 @@ namespace Project3_Personal_Finance.Controllers
         {
             var userId = GetCurrentUserId();
 
-            // BẢO MẬT: Chỉ xóa nếu nó thuộc về UserId hiện tại
             var transaction = await _context.Transactions
                                             .FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
 
@@ -165,6 +158,254 @@ namespace Project3_Personal_Finance.Controllers
             await _context.SaveChangesAsync();
 
             return Ok(new { message = "Delete transaction successfully" });
+        }
+
+        // ==================== CODE CỦA LINH  ====================
+
+        // GET: api/transactions/user/5/monthly?month=3&year=2026
+        [HttpGet("user/{userId}/monthly")]
+        public async Task<IActionResult> GetUserTransactionsByMonth(int userId, [FromQuery] int month, [FromQuery] int year)
+        {
+            try
+            {
+                var data = await _context.Transactions
+                    .Include(t => t.Category)
+                    .ThenInclude(c => c.Jar)
+                    .Where(t => t.UserId == userId
+                                && t.TransactionDate.Month == month
+                                && t.TransactionDate.Year == year)
+                    .OrderByDescending(t => t.TransactionDate)
+                    .Select(t => new
+                    {
+                        t.Id,
+                        t.Amount,
+                        t.Type,
+                        t.TransactionDate,
+                        t.Note,
+                        CategoryId = t.CategoryId,
+                        CategoryName = t.Category.Name,
+                        JarId = t.Category.JarId,
+                        JarName = t.Category.Jar.JarName,
+                        JarCode = t.Category.Jar.JarCode
+                    })
+                    .ToListAsync();
+
+                return Ok(data);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = ex.Message });
+            }
+        }
+
+        // GET: api/transactions/user/5/summary?month=3&year=2026
+        [HttpGet("user/{userId}/summary")]
+        public async Task<IActionResult> GetMonthlySummary(int userId, [FromQuery] int month, [FromQuery] int year)
+        {
+            try
+            {
+                var transactions = await _context.Transactions
+                    .Where(t => t.UserId == userId
+                                && t.TransactionDate.Month == month
+                                && t.TransactionDate.Year == year)
+                    .ToListAsync();
+
+                var income = transactions.Where(t => t.Type == "Income").Sum(t => t.Amount);
+                var expense = transactions.Where(t => t.Type == "Expense").Sum(t => t.Amount);
+
+                return Ok(new
+                {
+                    TotalIncome = income,
+                    TotalExpense = expense,
+                    Balance = income - expense,
+                    Month = month,
+                    Year = year
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = ex.Message });
+            }
+        }
+
+        // GET: api/transactions/user/5/by-jar?month=3&year=2026
+        [HttpGet("user/{userId}/by-jar")]
+        public async Task<IActionResult> GetExpenseByJarMonthly(int userId, [FromQuery] int month, [FromQuery] int year)
+        {
+            try
+            {
+                var data = await _context.Transactions
+                    .Include(t => t.Category)
+                    .ThenInclude(c => c.Jar)
+                    .Where(t => t.UserId == userId
+                                && t.Type == "Expense"
+                                && t.TransactionDate.Month == month
+                                && t.TransactionDate.Year == year)
+                    .GroupBy(t => new { t.Category.JarId, t.Category.Jar.JarName, t.Category.Jar.JarCode })
+                    .Select(g => new
+                    {
+                        JarId = g.Key.JarId,
+                        JarName = g.Key.JarName,
+                        JarCode = g.Key.JarCode,
+                        Total = g.Sum(t => t.Amount)
+                    })
+                    .OrderByDescending(x => x.Total)
+                    .ToListAsync();
+
+                return Ok(data);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = ex.Message });
+            }
+        }
+
+        // GET: api/transactions/user/5/trends?months=6
+        [HttpGet("user/{userId}/trends")]
+        public async Task<IActionResult> GetSpendingTrends(int userId, [FromQuery] int months = 6)
+        {
+            try
+            {
+                var endDate = DateTime.Now;
+                var startDate = endDate.AddMonths(-months);
+
+                var monthlyTrend = await _context.Transactions
+                    .Where(t => t.UserId == userId &&
+                               t.Type == "Expense" &&
+                               t.TransactionDate >= startDate &&
+                               t.TransactionDate <= endDate)
+                    .GroupBy(t => new { t.TransactionDate.Year, t.TransactionDate.Month })
+                    .Select(g => new
+                    {
+                        Period = $"{g.Key.Month}/{g.Key.Year}",
+                        Year = g.Key.Year,
+                        Month = g.Key.Month,
+                        Total = g.Sum(t => t.Amount)
+                    })
+                    .OrderBy(x => x.Year).ThenBy(x => x.Month)
+                    .ToListAsync();
+
+                var topCategories = await _context.Transactions
+                    .Include(t => t.Category)
+                    .Where(t => t.UserId == userId && t.Type == "Expense")
+                    .GroupBy(t => new { t.CategoryId, t.Category.Name })
+                    .Select(g => new
+                    {
+                        CategoryId = g.Key.CategoryId,
+                        CategoryName = g.Key.Name,
+                        Total = g.Sum(t => t.Amount)
+                    })
+                    .OrderByDescending(x => x.Total)
+                    .Take(5)
+                    .ToListAsync();
+
+                return Ok(new
+                {
+                    MonthlyTrend = monthlyTrend,
+                    TopCategories = topCategories
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = ex.Message });
+            }
+        }
+
+        // GET: api/transactions/user/5/budget-vs-actual?month=3&year=2026
+        [HttpGet("user/{userId}/budget-vs-actual")]
+        public async Task<IActionResult> GetBudgetVsActual(int userId, [FromQuery] int month, [FromQuery] int year)
+        {
+            try
+            {
+                var jars = await _context.FinancialJars.ToListAsync();
+
+                var budgets = await _context.Budgets
+                    .Where(b => b.UserId == userId && b.Month == month && b.Year == year)
+                    .ToDictionaryAsync(b => b.JarId);
+
+                var result = new List<object>();
+
+                foreach (var jar in jars)
+                {
+                    var actual = await _context.Transactions
+                        .Include(t => t.Category)
+                        .Where(t => t.UserId == userId &&
+                                   t.Category.JarId == jar.Id &&
+                                   t.Type == "Expense" &&
+                                   t.TransactionDate.Month == month &&
+                                   t.TransactionDate.Year == year)
+                        .SumAsync(t => t.Amount);
+
+                    var budgetAmount = budgets.ContainsKey(jar.Id) ? budgets[jar.Id].BudgetAmount : 0;
+
+                    result.Add(new
+                    {
+                        JarId = jar.Id,
+                        JarName = jar.JarName,
+                        JarCode = jar.JarCode,
+                        Budget = budgetAmount,
+                        Actual = actual,
+                        Difference = budgetAmount - actual,
+                        PercentUsed = budgetAmount > 0 ? Math.Round((actual / budgetAmount) * 100, 2) : 0
+                    });
+                }
+
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = ex.Message });
+            }
+        }
+
+        // GET: api/transactions/user/1/total-income?month=3&year=2026
+        [HttpGet("user/{userId}/total-income")]
+        public async Task<IActionResult> GetTotalIncome(int userId, [FromQuery] int month, [FromQuery] int year)
+        {
+            try
+            {
+                var total = await _context.Transactions
+                    .Where(t => t.UserId == userId
+                        && t.Type == "Income"
+                        && t.TransactionDate.Month == month
+                        && t.TransactionDate.Year == year)
+                    .SumAsync(t => t.Amount);
+
+                return Ok(new { total });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = ex.Message });
+            }
+        }
+
+        // GET: api/transactions/user/1/available-years
+        [HttpGet("user/{userId}/available-years")]
+        public async Task<IActionResult> GetAvailableYears(int userId)
+        {
+            try
+            {
+                var years = await _context.Transactions
+                    .Where(t => t.UserId == userId)
+                    .Select(t => t.TransactionDate.Year)
+                    .Distinct()
+                    .OrderByDescending(y => y)
+                    .ToListAsync();
+
+                var currentYear = DateTime.Now.Year;
+                if (!years.Contains(currentYear))
+                    years.Add(currentYear);
+                if (!years.Contains(currentYear + 1))
+                    years.Add(currentYear + 1);
+
+                years = years.OrderByDescending(y => y).ToList();
+
+                return Ok(years);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = ex.Message });
+            }
         }
     }
 }
