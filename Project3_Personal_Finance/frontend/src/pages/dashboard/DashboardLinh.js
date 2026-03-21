@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import TransactionForm from '../transactions/TransactionForm';
-import TransactionList from '../transactions/TransactionList';
+import TransactionForm from '../Transactions/TransactionForm';
+import TransactionList from '../Transactions/TransactionList';
 import BudgetList from '../budgets/BudgetList';
 
 const DashboardLinh = () => {  
