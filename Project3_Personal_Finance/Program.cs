@@ -5,7 +5,8 @@ using Project3_Personal_Finance.Models;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddDbContext<PersonalFinanceDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection") ?? "Server=localhost;Database=PersonalFinanceDB;Trusted_Connection=True;TrustServerCertificate=True"));
+builder.Services.AddDbContext<PersonalFinanceDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection") ?? "Server=localhost,1433;Database=PersonalFinanceDB;User Id=sa;Password=Sqlserver123@;TrustServerCertificate=True"));
+//Server = localhost; Database = PersonalFinanceDB; Trusted_Connection = True; TrustServerCertificate = True
 // Add services to the container.
 
 builder.Services.AddControllers()

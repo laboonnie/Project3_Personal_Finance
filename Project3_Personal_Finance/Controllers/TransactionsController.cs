@@ -44,6 +44,7 @@ namespace Project3_Personal_Finance.Controllers
                 UserId = userId,
                 Amount = request.Amount,
                 CategoryId = request.CategoryId,
+                Type = request.Type,
                 TransactionDate = request.TransactionDate,
                 Note = request.Note,
 
