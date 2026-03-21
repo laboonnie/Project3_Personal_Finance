@@ -15,8 +15,8 @@ export default function BudgetTable({budgets}){
                     <tbody>
                         {budgets.map(b=>(
                             <tr key={b.id}>
-                                <td>{b.jarName}</td>
-                                <td>{b.budgetAmount}</td>
+                                <td>{b.jar}</td>
+                                <td>{b.budget}</td>
                                 <td>{b.spent}</td>
                                 <td>{b.remaining}</td>
                             </tr>

@@ -6,10 +6,13 @@ import Dashboard from "./pages/dashboard/Dashboard";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import Transactions from "./pages/Transactions/Transactions";
+import Transactions from "./pages/transactions/Transactions";
 import Goals from "./pages/Goals/GoalPages";
 import Debts from "./pages/Debts/DebtPages";
 import Investments from "./pages/Investments/Investments";
+import 'bootstrap/dist/css/bootstrap.min.css';
+import DashboardLinh from "./pages/dashboard/Dashboard";
+
 
 function App() {
   return (
@@ -22,6 +25,11 @@ function App() {
         <Route path="/dashboard" element={
           <ProtectedRoute>
             <Dashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/bugets" element={
+          <ProtectedRoute>
+            <DashboardLinh />
           </ProtectedRoute>
         } />
         <Route path="/transactions" element={
