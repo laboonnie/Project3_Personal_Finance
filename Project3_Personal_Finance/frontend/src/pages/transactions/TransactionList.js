@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { transactionApi } from '../../api/transactionApi';
+import TransactionForm from './TransactionForm';
 import './Transactions.css';
 
 const TransactionList = ({ userId }) => {
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [showForm, setShowForm] = useState(false);
+    const [refresh, setRefresh] = useState(false);
     const [filter, setFilter] = useState({
         month: new Date().getMonth() + 1,
         year: new Date().getFullYear(),
@@ -22,7 +25,7 @@ const TransactionList = ({ userId }) => {
         if (filter.year) {
             loadTransactions();
         }
-    }, [userId, filter.month, filter.year, filter.type]);
+    }, [userId, filter.month, filter.year, filter.type, refresh]);
 
     const loadAvailableYears = async () => {
         try {
@@ -59,12 +62,17 @@ const TransactionList = ({ userId }) => {
         if (window.confirm('Are you sure you want to delete this transaction?')) {
             try {
                 await transactionApi.delete(id);
-                loadTransactions();
+                setRefresh(!refresh);
                 loadAvailableYears();
             } catch (err) {
                 alert('Delete failed');
             }
         }
+    };
+
+    const handleSuccess = () => {
+        setShowForm(false);
+        setRefresh(!refresh);
     };
 
     const handleMonthChange = (e) => {
@@ -101,14 +109,14 @@ const TransactionList = ({ userId }) => {
 
     const getJarIcon = (jarName) => {
         const icons = {
-            'Chi tiêu cần thiết': '',
-            'Giáo dục': '',
-            'Tiết kiệm dài hạn': '',
-            'Hưởng thụ': '',
-            'Tự do tài chính': '',
-            'Cho đi': ''
+            'Chi tiêu cần thiết': '🛒',
+            'Giáo dục': '📚',
+            'Tiết kiệm dài hạn': '💰',
+            'Hưởng thụ': '🎮',
+            'Tự do tài chính': '📈',
+            'Cho đi': '🎁'
         };
-        return icons[jarName] || '';
+        return icons[jarName] || '📦';
     };
 
     const filteredTransactions = filter.type === 'all'
@@ -125,14 +133,24 @@ const TransactionList = ({ userId }) => {
 
     const balance = incomeTotal - expenseTotal;
 
-    if (loading) return <div className="loading"> Loading...</div>;
-    if (error) return <div className="error"> {error}</div>;
+    if (loading) return <div className="loading">⏳ Loading...</div>;
+    if (error) return <div className="error">❌ {error}</div>;
 
     return (
         <div className="transaction-list-container">
+            {/* Header với nút New Transaction */}
             <div className="transaction-header">
-                <h3> Transaction History</h3>
+                <h3>📋 Transaction History</h3>
+                <button
+                    className="btn-new-transaction"
+                    onClick={() => setShowForm(true)}
+                >
+                    ➕ New Transaction
+                </button>
+            </div>
 
+            {/* Filters */}
+            <div className="filters-section">
                 <div className="filters">
                     <select value={filter.month} onChange={handleMonthChange}>
                         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => (
@@ -151,15 +169,25 @@ const TransactionList = ({ userId }) => {
                     </select>
 
                     <select value={filter.type} onChange={handleTypeChange}>
-                        <option value="all"> All</option>
-                        <option value="Income"> Income</option>
-                        <option value="Expense"> Expense</option>
+                        <option value="all">📊 All</option>
+                        <option value="Income">💰 Income</option>
+                        <option value="Expense">💸 Expense</option>
                     </select>
                 </div>
             </div>
 
+            {/* Form thêm transaction - chỉ hiện khi click nút New Transaction */}
+            {showForm && (
+                <TransactionForm
+                    userId={userId}
+                    onSuccess={handleSuccess}
+                    onCancel={() => setShowForm(false)}
+                />
+            )}
+
+            {/* Danh sách transaction */}
             {filteredTransactions.length === 0 ? (
-                <p className="no-data"> No transactions in month {filter.month}/{filter.year}</p>
+                <p className="no-data">📭 No transactions in month {filter.month}/{filter.year}</p>
             ) : (
                 <>
                     <div className="transaction-list">
@@ -179,7 +207,7 @@ const TransactionList = ({ userId }) => {
                                         </span>
                                     </div>
                                     <div className="transaction-date">{formatDate(transaction.transactionDate)}</div>
-                                    {transaction.note && <div className="transaction-note"> {transaction.note}</div>}
+                                    {transaction.note && <div className="transaction-note">📝 {transaction.note}</div>}
                                 </div>
 
                                 <div className="transaction-amount">
@@ -191,7 +219,7 @@ const TransactionList = ({ userId }) => {
                                         className="btn-delete"
                                         title="Delete"
                                     >
-                                        
+                                        🗑️
                                     </button>
                                 </div>
                             </div>
@@ -199,7 +227,7 @@ const TransactionList = ({ userId }) => {
                     </div>
 
                     <div className="transaction-summary">
-                        <h4> Summary - Month {filter.month}/{filter.year}</h4>
+                        <h4>📊 Summary - Month {filter.month}/{filter.year}</h4>
                         <div className="summary-row">
                             <span>Total Income:</span>
                             <strong className="income">+ {formatMoney(incomeTotal)}</strong>
