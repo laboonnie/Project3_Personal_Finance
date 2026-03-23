@@ -6,7 +6,8 @@ import Dashboard from "./pages/dashboard/Dashboard";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import Transactions from "./pages/transactions/Transactions";
+import Transactions from "./pages/Transactions/Transactions";
+import Budgets from "./pages/budgets/Budgets";
 import Goals from "./pages/Goals/GoalPages";
 import Debts from "./pages/Debts/DebtPages";
 import Investments from "./pages/Investments/Investments";
@@ -33,8 +34,13 @@ function App() {
           </ProtectedRoute>
         } />
         <Route path="/transactions" element={
-          <ProtectedRoute>
-            <Transactions />
+                  <ProtectedRoute>
+                      <Transactions />
+          </ProtectedRoute>
+        } />
+        <Route path="/budgets" element={
+                  <ProtectedRoute>
+                      <Budgets />
           </ProtectedRoute>
         } />
         <Route path="/goals" element={
