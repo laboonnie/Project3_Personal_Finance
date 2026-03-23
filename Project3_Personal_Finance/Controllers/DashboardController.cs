@@ -26,9 +26,9 @@ namespace Project3_Personal_Finance.Controllers
             var netBalance = totalIncome - totalExpense;
             var summary = new
             {
-                TotalIncome = totalIncome,
-                TotalExpense = totalExpense,
-                NetBalance = netBalance,
+                totalIncome,
+                totalExpense,
+                netBalance,
                 totalDebt
             };
             return Ok(summary);
@@ -44,17 +44,42 @@ namespace Project3_Personal_Finance.Controllers
                 .GroupBy(x => x.JarName).Select(g => new
                 {
                     jarName = g.Key,
-                    amout = g.Sum(x => x.Amount)
+                    amount = g.Sum(x => x.Amount)
                 }).ToListAsync();
             return Ok(data);
         }
         [HttpGet("budgets")]
         public async Task<IActionResult> GetBudgets()
         {
-            var budgets = await _context.Budgets
-                .Join(_context.FinancialJars, b => b.JarId, j => j.Id, (b, j) => new { b.Id, b.Month, b.Year, b.BudgetAmount, j.JarName })
-                .ToListAsync();
-            return Ok(budgets);
+            var budgets = await (
+                from b in _context.Budgets
+                join j in _context.FinancialJars on b.JarId equals j.Id
+                select new
+                {
+                    Jar = j.JarName,
+                    Budget = b.BudgetAmount,
+
+                    Spent = (
+                        from t in _context.Transactions
+                        join c in _context.Categories on t.CategoryId equals c.Id
+                        where t.Type == "Expense"
+                              && c.JarId == b.JarId
+                              && t.TransactionDate.Month == b.Month
+                              && t.TransactionDate.Year == b.Year
+                        select (decimal?)t.Amount
+                    ).Sum() ?? 0
+                }
+            ).ToListAsync();
+
+            var result = budgets.Select(x => new
+            {
+                x.Jar,
+                x.Budget,
+                x.Spent,
+                Remaining = x.Budget - x.Spent
+            });
+
+            return Ok(result);
         }
         [HttpGet("goals")]
         public async Task<IActionResult> GetGoals()

@@ -11,6 +11,9 @@ import Budgets from "./pages/budgets/Budgets";
 import Goals from "./pages/Goals/GoalPages";
 import Debts from "./pages/Debts/DebtPages";
 import Investments from "./pages/Investments/Investments";
+import 'bootstrap/dist/css/bootstrap.min.css';
+import DashboardLinh from "./pages/dashboard/Dashboard";
+
 
 function App() {
   return (
@@ -23,6 +26,11 @@ function App() {
         <Route path="/dashboard" element={
           <ProtectedRoute>
             <Dashboard />
+          </ProtectedRoute>
+        } />
+        <Route path="/bugets" element={
+          <ProtectedRoute>
+            <DashboardLinh />
           </ProtectedRoute>
         } />
         <Route path="/transactions" element={
