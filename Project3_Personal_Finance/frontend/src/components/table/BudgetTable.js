@@ -13,12 +13,12 @@ export default function BudgetTable({budgets}){
                         </tr>
                     </thead>
                     <tbody>
-                        {budgets.map(b=>(
-                            <tr key={b.id}>
+                        {budgets.map((b,index)=>(
+                            <tr key={index}>
                                 <td>{b.jar}</td>
-                                <td>{b.budget}</td>
-                                <td>{b.spent}</td>
-                                <td>{b.remaining}</td>
+                                <td>{b.budget.toLocaleString()}</td>
+                                <td>{b.spent.toLocaleString()}</td>
+                                <td>{b.remaining.toLocaleString()}</td>
                             </tr>
                         ))}
                     </tbody>

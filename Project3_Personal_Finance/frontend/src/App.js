@@ -28,11 +28,6 @@ function App() {
             <Dashboard />
           </ProtectedRoute>
         } />
-        <Route path="/bugets" element={
-          <ProtectedRoute>
-            <DashboardLinh />
-          </ProtectedRoute>
-        } />
         <Route path="/transactions" element={
                   <ProtectedRoute>
                       <Transactions />
