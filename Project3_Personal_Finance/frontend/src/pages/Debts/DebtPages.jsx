@@ -1,9 +1,36 @@
 ﻿import { useState, useEffect } from "react";
 import { debtApi } from "../../api/debtApi";
 
-const userId = 1;
+const decodeBase64Url = (value) => {
+    const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+    return atob(padded);
+};
+
+const getCurrentUserId = () => {
+    try {
+        const token = localStorage.getItem("token");
+        if (!token) return null;
+
+        const parts = token.split(".");
+        if (parts.length < 2) return null;
+
+        const payload = JSON.parse(decodeBase64Url(parts[1]));
+        const rawUserId =
+            payload.nameid ||
+            payload.sub ||
+            payload.userId ||
+            payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"];
+
+        const parsedUserId = Number(rawUserId);
+        return Number.isInteger(parsedUserId) && parsedUserId > 0 ? parsedUserId : null;
+    } catch {
+        return null;
+    }
+};
 
 export default function DebtPage() {
+    const userId = getCurrentUserId();
     const [debts, setDebts] = useState([]);
     const [showForm, setShowForm] = useState(false);
     const [showPayForm, setShowPayForm] = useState(null);
@@ -18,11 +45,17 @@ export default function DebtPage() {
     useEffect(() => { loadDebts(); }, []);
 
     const loadDebts = async () => {
+        if (!userId) {
+            setDebts([]);
+            return;
+        }
+
         const data = await debtApi.getAll();
         setDebts(data.filter(d => d.userId === userId));
     };
 
     const handleCreate = async () => {
+        if (!userId) return alert("Không lấy được thông tin người dùng. Vui lòng đăng nhập lại!");
         if (!form.debtName || !form.totalAmount) return alert("Điền đầy đủ thông tin!");
         await debtApi.create({
             userId,
