@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { transactionApi } from '../../api/transactionApi';
 import TransactionForm from './TransactionForm';
 import './Transactions.css';
 
-const TransactionList = ({ userId }) => {
+const TransactionList = () => {  // ✅ BỎ userId props
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -17,20 +17,10 @@ const TransactionList = ({ userId }) => {
     const [availableYears, setAvailableYears] = useState([]);
     const [loadingYears, setLoadingYears] = useState(true);
 
-    useEffect(() => {
-        loadAvailableYears();
-    }, [userId]);
-
-    useEffect(() => {
-        if (filter.year) {
-            loadTransactions();
-        }
-    }, [userId, filter.month, filter.year, filter.type, refresh]);
-
-    const loadAvailableYears = async () => {
+    const loadAvailableYears = useCallback(async () => {
         try {
             setLoadingYears(true);
-            const response = await transactionApi.getAvailableYears(userId);
+            const response = await transactionApi.getAvailableYears();
             setAvailableYears(response.data.sort((a, b) => b - a));
         } catch (error) {
             console.error('Error loading years:', error);
@@ -39,30 +29,39 @@ const TransactionList = ({ userId }) => {
         } finally {
             setLoadingYears(false);
         }
-    };
+    }, []);
 
-    const loadTransactions = async () => {
+    const loadTransactions = useCallback(async () => {
         try {
             setLoading(true);
             const response = await transactionApi.getMonthlyTransactions(
-                userId,
                 filter.month,
                 filter.year
             );
-            setTransactions(response.data);
+            setTransactions(response.data || []);
         } catch (err) {
-            setError('Could not load transactions');
-            console.error(err);
+            console.error('Error loading transactions:', err);
+            setTransactions([]);
         } finally {
             setLoading(false);
         }
-    };
+    }, [filter.month, filter.year]);
+
+    useEffect(() => {
+        loadAvailableYears();
+    }, [loadAvailableYears]);
+
+    useEffect(() => {
+        if (filter.year) {
+            loadTransactions();
+        }
+    }, [loadTransactions, filter.year, refresh]);
 
     const handleDelete = async (id) => {
         if (window.confirm('Are you sure you want to delete this transaction?')) {
             try {
                 await transactionApi.delete(id);
-                setRefresh(!refresh);
+                setRefresh(prev => !prev);
                 loadAvailableYears();
             } catch (err) {
                 alert('Delete failed');
@@ -72,7 +71,7 @@ const TransactionList = ({ userId }) => {
 
     const handleSuccess = () => {
         setShowForm(false);
-        setRefresh(!refresh);
+        setRefresh(prev => !prev);
     };
 
     const handleMonthChange = (e) => {
@@ -86,6 +85,7 @@ const TransactionList = ({ userId }) => {
     const handleTypeChange = (e) => {
         setFilter({ ...filter, type: e.target.value });
     };
+
 
     const formatMoney = (amount) => {
         return new Intl.NumberFormat('vi-VN').format(amount) + 'đ';
@@ -118,7 +118,6 @@ const TransactionList = ({ userId }) => {
         };
         return icons[jarName] || '📦';
     };
-
     const filteredTransactions = filter.type === 'all'
         ? transactions
         : transactions.filter(t => t.type === filter.type);
@@ -134,22 +133,17 @@ const TransactionList = ({ userId }) => {
     const balance = incomeTotal - expenseTotal;
 
     if (loading) return <div className="loading">⏳ Loading...</div>;
-    if (error) return <div className="error">❌ {error}</div>;
+
 
     return (
         <div className="transaction-list-container">
-            {/* Header với nút New Transaction */}
             <div className="transaction-header">
                 <h3>📋 Transaction History</h3>
-                <button
-                    className="btn-new-transaction"
-                    onClick={() => setShowForm(true)}
-                >
+                <button className="btn-new-transaction" onClick={() => setShowForm(true)}>
                     ➕ New Transaction
                 </button>
             </div>
 
-            {/* Filters */}
             <div className="filters-section">
                 <div className="filters">
                     <select value={filter.month} onChange={handleMonthChange}>
@@ -176,55 +170,59 @@ const TransactionList = ({ userId }) => {
                 </div>
             </div>
 
-            {/* Form thêm transaction - chỉ hiện khi click nút New Transaction */}
             {showForm && (
                 <TransactionForm
-                    userId={userId}
                     onSuccess={handleSuccess}
                     onCancel={() => setShowForm(false)}
                 />
             )}
 
-            {/* Danh sách transaction */}
             {filteredTransactions.length === 0 ? (
-                <p className="no-data">📭 No transactions in month {filter.month}/{filter.year}</p>
+                <div className="empty-state">
+                    <div className="empty-icon">📭</div>
+                    <h3>No transactions yet</h3>
+                    <p>Click "New Transaction" to add your first income or expense</p>
+                    <button className="btn-new-transaction" onClick={() => setShowForm(true)}>
+                        ➕ Add your first transaction
+                    </button>
+                </div>
             ) : (
                 <>
-                    <div className="transaction-list">
-                        {filteredTransactions.map(transaction => (
-                            <div key={transaction.id} className={`transaction-item ${transaction.type.toLowerCase()}`}>
-                                <div className="transaction-info">
-                                    <div className="transaction-category">
-                                        <strong>{transaction.categoryName}</strong>
-                                        <span
-                                            className="transaction-jar"
-                                            style={{
-                                                backgroundColor: getJarColor(transaction.jarName),
-                                                color: 'white'
-                                            }}
-                                        >
-                                            {getJarIcon(transaction.jarName)} {transaction.jarName}
-                                        </span>
+                        <div className="transaction-list">
+                            {filteredTransactions.map(transaction => (
+                                <div key={transaction.id} className={`transaction-item ${transaction.type.toLowerCase()}`}>
+                                    <div className="transaction-info">
+                                        <div className="transaction-category">
+                                            <strong>{transaction.categoryName}</strong>
+                                            <span
+                                                className="transaction-jar"
+                                                style={{
+                                                    backgroundColor: getJarColor(transaction.jarName),
+                                                    color: 'white'
+                                                }}
+                                            >
+                                                {getJarIcon(transaction.jarName)} {transaction.jarName}
+                                            </span>
+                                        </div>
+                                        <div className="transaction-date">{formatDate(transaction.transactionDate)}</div>
+                                        {transaction.note && <div className="transaction-note">📝 {transaction.note}</div>}
                                     </div>
-                                    <div className="transaction-date">{formatDate(transaction.transactionDate)}</div>
-                                    {transaction.note && <div className="transaction-note">📝 {transaction.note}</div>}
-                                </div>
 
-                                <div className="transaction-amount">
-                                    <span className={transaction.type.toLowerCase()}>
-                                        {transaction.type === 'Income' ? '+' : '-'} {formatMoney(transaction.amount)}
-                                    </span>
-                                    <button
-                                        onClick={() => handleDelete(transaction.id)}
-                                        className="btn-delete"
-                                        title="Delete"
-                                    >
-                                        🗑️
-                                    </button>
+                                    <div className="transaction-amount">
+                                        <span className={transaction.type.toLowerCase()}>
+                                            {transaction.type === 'Income' ? '+' : '-'} {formatMoney(transaction.amount)}
+                                        </span>
+                                        <button
+                                            onClick={() => handleDelete(transaction.id)}
+                                            className="btn-delete"
+                                            title="Delete"
+                                        >
+                                            🗑️
+                                        </button>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
-                    </div>
+                            ))}
+                        </div>
 
                     <div className="transaction-summary">
                         <h4>📊 Summary - Month {filter.month}/{filter.year}</h4>
@@ -250,3 +248,9 @@ const TransactionList = ({ userId }) => {
 };
 
 export default TransactionList;
+
+
+
+
+
+
