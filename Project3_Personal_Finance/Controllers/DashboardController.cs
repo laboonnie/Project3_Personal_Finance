@@ -1,13 +1,20 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Project3_Personal_Finance.Models;
+using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 namespace Project3_Personal_Finance.Controllers
 {
+    [Authorize]
     [Route("api/[controller]")]
     [ApiController]
     public class DashboardController : ControllerBase
     {
         private readonly PersonalFinanceDbContext _context;
+        private int GetCurrentUserId()
+        {
+            return int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+        }
         public DashboardController(PersonalFinanceDbContext context)
         {
             _context = context;
@@ -15,13 +22,14 @@ namespace Project3_Personal_Finance.Controllers
         [HttpGet("summary")]
         public async Task<IActionResult> GetSummary()
         {
+            var userId = GetCurrentUserId();
             var totalIncome = await _context.Transactions
-                .Where(t => t.Type == "Income")
+                .Where(t => t.Type == "Income" && t.UserId== userId)
                 .SumAsync(t => (decimal?)t.Amount) ?? 0;
             var totalExpense = await _context.Transactions
-                .Where(t => t.Type == "Expense")
+                .Where(t => t.Type == "Expense" && t.UserId == userId)
                 .SumAsync(t => (decimal?)t.Amount) ?? 0;
-            var totalDebt = await _context.Debts
+            var totalDebt = await _context.Debts.Where( d =>d.UserId ==userId)
                 .SumAsync(d => (decimal?)d.RemainingAmount) ?? 0;
             var netBalance = totalIncome - totalExpense;
             var summary = new
@@ -36,8 +44,9 @@ namespace Project3_Personal_Finance.Controllers
         [HttpGet("jar-spending")]
         public async Task<IActionResult> GetJarSpending()
         {
+            var userId = GetCurrentUserId();
             var data = await _context.Transactions
-                .Where(t => t.Type == "Expense")
+                .Where(t => t.Type == "Expense" && t.UserId == userId)
                 .Join(_context.Categories, t => t.CategoryId, c => c.Id
                 , (t, c) => new { t.Amount, c.JarId })
                 .Join(_context.FinancialJars, tc => tc.JarId, j => j.Id, (tc, j) => new { j.JarName, tc.Amount })
@@ -51,8 +60,10 @@ namespace Project3_Personal_Finance.Controllers
         [HttpGet("budgets")]
         public async Task<IActionResult> GetBudgets()
         {
+            var userId = GetCurrentUserId();
             var budgets = await (
                 from b in _context.Budgets
+                where b.UserId == userId
                 join j in _context.FinancialJars on b.JarId equals j.Id
                 select new
                 {
@@ -84,7 +95,8 @@ namespace Project3_Personal_Finance.Controllers
         [HttpGet("goals")]
         public async Task<IActionResult> GetGoals()
         {
-            var goals = await _context.Goals.Select(g => new
+            var userId = GetCurrentUserId();
+            var goals = await _context.Goals.Where( g =>g.UserId==userId).Select(g => new
             {
                 g.Id,
                 g.GoalName,
@@ -97,8 +109,9 @@ namespace Project3_Personal_Finance.Controllers
         [HttpGet("monthly-expense")]
         public async Task<IActionResult> GetMonthlyExpense()
         {
+            var userId = GetCurrentUserId();
             var data = await _context.Transactions
-                .Where(t => t.Type == "Expense")
+                .Where(t => t.Type == "Expense" && t.UserId == userId)
                 .GroupBy(t => t.TransactionDate.Month)
                 .Select(g => new {
                     month = g.Key,
