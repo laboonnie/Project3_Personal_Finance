@@ -84,6 +84,19 @@ public partial class PersonalFinanceDbContext : DbContext
                 .HasConstraintName("FK__Debts__UserId__4CA06362");
         });
 
+        modelBuilder.Entity<DebtPayment>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.AmountPaid).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.Note).HasMaxLength(500);
+            entity.Property(e => e.PaymentDate).HasColumnType("datetime");
+
+            entity.HasOne(d => d.Debt).WithMany()
+                .HasForeignKey(d => d.DebtId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
         modelBuilder.Entity<FinancialJar>(entity =>
         {
             entity.HasKey(e => e.Id).HasName("PK__Financia__3214EC074225442F");

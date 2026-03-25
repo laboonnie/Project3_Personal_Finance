@@ -55,8 +55,8 @@ export default function Goals() {
     };
 
     const handleCreate = async () => {
-        if (!userId) return alert("Không lấy được thông tin người dùng. Vui lòng đăng nhập lại!");
-        if (!form.goalName || !form.targetAmount) return alert("Điền đầy đủ thông tin!");
+        if (!userId) return alert("Unable to retrieve user information. Please log in again!");
+        if (!form.goalName || !form.targetAmount) return alert("Please fill in all required information!");
         const res = await fetch(`${BASE_URL}/Goals`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -75,7 +75,7 @@ export default function Goals() {
     };
 
     const handleDeposit = async (goalId) => {
-        if (!depositAmount) return alert("Nhập số tiền!");
+        if (!depositAmount) return alert("Please enter an amount!");
         const res = await fetch(`${BASE_URL}/Goals/${goalId}/deposit`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -89,7 +89,7 @@ export default function Goals() {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm("Xóa goal này?")) return;
+        if (!window.confirm("Delete this goal?")) return;
         await fetch(`${BASE_URL}/Goals/${id}`, { method: "DELETE" });
         loadGoals();
     };
@@ -105,32 +105,32 @@ export default function Goals() {
         Number(amount).toLocaleString("vi-VN") + " ₫";
 
     const getStatusText = (status) => {
-        if (status === "completed") return "✅ Hoàn thành";
-        return "⏳ Đang thực hiện";
+        if (status === "completed") return "✅ Completed";
+        return "⏳ In progress";
     };
 
     return (
         <div className="goal-page-container">
             <div className="goal-page-header">
-                <h2>🎯 Mục tiêu tài chính</h2>
+                <h2>🎯 Financial Goals</h2>
                 <button className="goal-btn-primary" onClick={() => setShowForm(!showForm)}>
-                    + Thêm mục tiêu
+                    + Add goal
                 </button>
             </div>
 
             {showForm && (
                 <div className="goal-form-card">
-                    <h3>Thêm mục tiêu mới</h3>
+                    <h3>Add new goal</h3>
                     <div className="goal-grid-2">
                         <div className="goal-form-group">
-                            <label>Tên mục tiêu</label>
-                            <input placeholder="VD: Du lịch Đà Nẵng"
+                            <label>Goal name</label>
+                            <input placeholder="e.g., Da Nang trip"
                                 value={form.goalName}
                                 onChange={e => setForm({ ...form, goalName: e.target.value })} />
                         </div>
                         <div className="goal-form-group">
-                            <label>Số tiền mục tiêu (₫)</label>
-                            <input type="number" placeholder="VD: 10000000"
+                            <label>Target amount (₫)</label>
+                            <input type="number" placeholder="e.g., 10000000"
                                 value={form.targetAmount}
                                 onChange={e => setForm({ ...form, targetAmount: e.target.value })} />
                         </div>
@@ -142,14 +142,14 @@ export default function Goals() {
                         </div>
                     </div>
                     <div className="goal-actions">
-                        <button className="goal-btn-primary" onClick={handleCreate}>💾 Lưu</button>
-                        <button className="goal-btn-secondary" onClick={() => setShowForm(false)}>Hủy</button>
+                        <button className="goal-btn-primary" onClick={handleCreate}>💾 Save</button>
+                        <button className="goal-btn-secondary" onClick={() => setShowForm(false)}>Cancel</button>
                     </div>
                 </div>
             )}
 
             {goals.length === 0 ? (
-                <div className="goal-empty">🎯 Chưa có mục tiêu nào!</div>
+                <div className="goal-empty">🎯 No goals yet!</div>
             ) : goals.map(goal => (
                 <div key={goal.id} className="goal-card">
                     <div className="goal-top">
@@ -163,7 +163,7 @@ export default function Goals() {
                             {goal.status !== "completed" && (
                                 <button className="goal-btn-primary"
                                     onClick={() => setShowDeposit(showDeposit === goal.id ? null : goal.id)}>
-                                    💰 Nạp tiền
+                                    💰 Deposit
                                 </button>
                             )}
                             <button className="goal-btn-danger" onClick={() => handleDelete(goal.id)}>
@@ -174,11 +174,11 @@ export default function Goals() {
 
                     <div className="goal-grid-3">
                         <div className="goal-info-box">
-                            <span className="goal-info-label">Mục tiêu</span>
+                            <span className="goal-info-label">Goal</span>
                             <span className="goal-info-value">{formatMoney(goal.targetAmount)}</span>
                         </div>
                         <div className="goal-info-box">
-                            <span className="goal-info-label">Đã tích lũy</span>
+                            <span className="goal-info-label">Saved</span>
                             <span className="goal-info-value saved">
                                 {formatMoney(goal.currentAmount)}
                             </span>
@@ -188,7 +188,7 @@ export default function Goals() {
                             <span className="goal-info-value">
                                 {goal.deadline
                                     ? new Date(goal.deadline).toLocaleDateString("vi-VN")
-                                    : "Không có"}
+                                    : "None"}
                             </span>
                         </div>
                     </div>
@@ -201,28 +201,28 @@ export default function Goals() {
                             />
                         </div>
                         <span className="goal-progress-text">
-                            {calcPercent(goal)}% hoàn thành
+                            {calcPercent(goal)}% completed
                         </span>
                     </div>
 
                     {showDeposit === goal.id && (
                         <div className="goal-sub-card">
-                            <h4>💰 Nạp tiền vào mục tiêu</h4>
+                            <h4>💰 Deposit into goal</h4>
                             <div className="goal-grid-2">
                                 <div className="goal-form-group">
-                                    <label>Số tiền nạp (₫)</label>
+                                    <label>Deposit amount (₫)</label>
                                     <input type="number"
-                                        placeholder="VD: 1000000"
+                                        placeholder="e.g., 1000000"
                                         value={depositAmount}
                                         onChange={e => setDepositAmount(e.target.value)} />
                                 </div>
                             </div>
                             <div className="goal-actions">
                                 <button className="goal-btn-primary" onClick={() => handleDeposit(goal.id)}>
-                                    Xác nhận
+                                    Confirm
                                 </button>
                                 <button className="goal-btn-secondary" onClick={() => setShowDeposit(null)}>
-                                    Hủy
+                                    Cancel
                                 </button>
                             </div>
                         </div>
