@@ -77,6 +77,9 @@ namespace Project3_Personal_Finance.Controllers
         [HttpPost]
         public async Task<ActionResult<Debt>> PostDebt(Debt debt)
         {
+            debt.User = null;
+            debt.RemainingAmount ??= debt.TotalAmount;
+            debt.Status ??= "active";
             _context.Debts.Add(debt);
             await _context.SaveChangesAsync();
 
