@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { budgetApi } from '../../api/budgetApi';
 import { transactionApi } from '../../api/transactionApi';
 import BudgetForm from './BudgetForm';
 import './Budgets.css';
 
-const BudgetList = ({ userId }) => {
+const BudgetList = () => {  // ✅ BỎ userId props
     const [budgets, setBudgets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [month, setMonth] = useState(new Date().getMonth() + 1);
@@ -16,51 +16,56 @@ const BudgetList = ({ userId }) => {
     const [summary, setSummary] = useState({ totalBudget: 0, totalSpent: 0, totalRemaining: 0 });
     const [totalIncome, setTotalIncome] = useState(0);
     const [showDistribute, setShowDistribute] = useState(false);
+    const [refresh, setRefresh] = useState(false);
 
-    useEffect(() => {
-        loadAvailableYears();
-    }, [userId]);
-
-    useEffect(() => {
-        if (year) {
-            loadData();
-        }
-    }, [userId, month, year]);
-
-    const loadAvailableYears = async () => {
+    const loadAvailableYears = useCallback(async () => {
         try {
             setLoadingYears(true);
-            const response = await budgetApi.getAvailableYears(userId);
+            const response = await budgetApi.getAvailableYears();
             setAvailableYears(response.data.sort((a, b) => b - a));
         } catch (error) {
             console.error('Error loading years:', error);
             const currentYear = new Date().getFullYear();
-            setAvailableYears([currentYear + 1, currentYear, currentYear - 1, currentYear - 2]);
+            setAvailableYears([currentYear + 1, currentYear, currentYear - 1]);
         } finally {
             setLoadingYears(false);
         }
-    };
+    }, []);
 
-    const loadData = async () => {
+    const loadData = useCallback(async () => {
         setLoading(true);
         try {
             const [budgetsRes, incomeRes] = await Promise.all([
-                budgetApi.getMonthlyBudgets(userId, month, year),
-                transactionApi.getTotalIncome(userId, month, year)
+                budgetApi.getMonthlyBudgets(month, year),
+                transactionApi.getTotalIncome(month, year)
             ]);
 
             setBudgets(budgetsRes.data);
             setTotalIncome(incomeRes.data.total || 0);
 
-            const totalBudget = budgetsRes.data.reduce((sum, b) => sum + b.budgetAmount, 0);
-            const totalSpent = budgetsRes.data.reduce((sum, b) => sum + b.spent, 0);
+            const totalBudget = budgetsRes.data.reduce((sum, b) => sum + (b.budgetAmount || 0), 0);
+            const totalSpent = budgetsRes.data.reduce((sum, b) => sum + (b.spent || 0), 0);
             setSummary({ totalBudget, totalSpent, totalRemaining: totalBudget - totalSpent });
         } catch (error) {
             console.error('Error loading data:', error);
         } finally {
             setLoading(false);
         }
-    };
+    }, [month, year]);
+
+    const refreshData = useCallback(() => {
+        setRefresh(prev => !prev);
+    }, []);
+
+    useEffect(() => {
+        loadAvailableYears();
+    }, [loadAvailableYears]);
+
+    useEffect(() => {
+        if (year) {
+            loadData();
+        }
+    }, [loadData, year, refresh]);
 
     const distributeBudget = async () => {
         if (totalIncome <= 0) {
@@ -70,25 +75,27 @@ const BudgetList = ({ userId }) => {
 
         let successCount = 0;
         for (const jar of budgets) {
-            const amount = totalIncome * (jar.defaultPercentage / 100);
-            if (amount > 0) {
-                try {
-                    await budgetApi.create({
-                        userId,
-                        jarId: jar.jarId,
-                        budgetAmount: Math.round(amount),
-                        month,
-                        year
-                    });
-                    successCount++;
-                } catch (error) {
-                    console.error('Error saving budget:', error);
+            const percentage = jar.defaultPercentage || 0;
+            if (percentage > 0) {
+                const amount = totalIncome * (percentage / 100);
+                if (amount > 0) {
+                    try {
+                        await budgetApi.create({
+                            jarId: jar.jarId,
+                            budgetAmount: Math.round(amount),
+                            month,
+                            year
+                        });
+                        successCount++;
+                    } catch (error) {
+                        console.error('Error saving budget:', error);
+                    }
                 }
             }
         }
 
-        alert( "Successfully distributed budget for ${successCount}/6 jars!");
-        loadData();
+        alert(`✅ Successfully distributed budget for ${successCount}/6 jars!`);
+        refreshData();
         setShowDistribute(false);
     };
 
@@ -268,7 +275,6 @@ const BudgetList = ({ userId }) => {
             {showForm && (
                 <BudgetForm
                     jar={selectedJar}
-                    userId={userId}
                     month={month}
                     year={year}
                     onClose={() => setShowForm(false)}
