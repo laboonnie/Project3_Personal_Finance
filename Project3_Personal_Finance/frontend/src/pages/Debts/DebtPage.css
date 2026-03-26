@@ -15,12 +15,12 @@
     flex-wrap: wrap;
 }
 
-.debt-page-header h2 {
-    margin: 0;
-    color: #1e293b;
-    font-size: 1.5rem;
-    font-weight: 600;
-}
+    .debt-page-header h2 {
+        margin: 0;
+        color: #1e293b;
+        font-size: 1.5rem;
+        font-weight: 600;
+    }
 
 .debt-btn-primary {
     padding: 10px 24px;
@@ -35,10 +35,10 @@
     box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
 }
 
-.debt-btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
-}
+    .debt-btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+    }
 
 .debt-btn-secondary {
     padding: 10px 20px;
@@ -52,9 +52,9 @@
     transition: all 0.2s ease;
 }
 
-.debt-btn-secondary:hover {
-    background: #e2e8f0;
-}
+    .debt-btn-secondary:hover {
+        background: #e2e8f0;
+    }
 
 .debt-form-card {
     margin-bottom: 20px;
@@ -64,13 +64,13 @@
     border: 1px solid #e2e8f0;
 }
 
-.debt-form-card h3,
-.debt-sub-card h4 {
-    margin: 0 0 14px 0;
-    color: #1e293b;
-    font-size: 1.1rem;
-    font-weight: 600;
-}
+    .debt-form-card h3,
+    .debt-sub-card h4 {
+        margin: 0 0 14px 0;
+        color: #1e293b;
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
 
 .debt-grid-2 {
     display: grid;
@@ -107,11 +107,11 @@
     background: white;
 }
 
-.debt-form-group input:focus {
-    outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
-}
+    .debt-form-group input:focus {
+        outline: none;
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
 
 .debt-actions,
 .debt-actions-inline {
@@ -151,13 +151,13 @@
     color: white;
 }
 
-.debt-badge.paid-off {
-    background: #10b981;
-}
+    .debt-badge.paid-off {
+        background: #10b981;
+    }
 
-.debt-badge.active {
-    background: #f59e0b;
-}
+    .debt-badge.active {
+        background: #f59e0b;
+    }
 
 .debt-info-box {
     display: flex;
@@ -176,9 +176,9 @@
     color: #1e293b;
 }
 
-.debt-info-value.remaining {
-    color: #ef4444;
-}
+    .debt-info-value.remaining {
+        color: #ef4444;
+    }
 
 .debt-progress-section {
     margin-top: 14px;

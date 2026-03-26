@@ -1,5 +1,6 @@
 ﻿import { useState, useEffect } from "react";
 import { debtApi } from "../../api/debtApi";
+import "./DebtPage.css";
 
 const decodeBase64Url = (value) => {
     const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
@@ -55,8 +56,8 @@ export default function DebtPage() {
     };
 
     const handleCreate = async () => {
-        if (!userId) return alert("Không lấy được thông tin người dùng. Vui lòng đăng nhập lại!");
-        if (!form.debtName || !form.totalAmount) return alert("Điền đầy đủ thông tin!");
+        if (!userId) return alert("Unable to retrieve user information. Please log in again!");
+        if (!form.debtName || !form.totalAmount) return alert("Please fill in all required information!");
         await debtApi.create({
             userId,
             debtName: form.debtName,
@@ -72,9 +73,9 @@ export default function DebtPage() {
     };
 
     const handlePay = async (debt) => {
-        if (!payAmount) return alert("Nhập số tiền trả!");
+        if (!payAmount) return alert("Please enter a payment amount!");
         const amount = parseFloat(payAmount);
-        if (amount > debt.remainingAmount) return alert("Số tiền vượt quá số nợ còn lại!");
+        if (amount > debt.remainingAmount) return alert("Payment amount exceeds the remaining debt!");
 
         const newRemaining = debt.remainingAmount - amount;
 
@@ -117,157 +118,176 @@ export default function DebtPage() {
     };
 
     return (
-        <div style={s.container}>
-            <div style={s.header}>
-                <h2 style={s.title}>💳 Quản lý Nợ</h2>
-                <button style={s.btnPrimary} onClick={() => setShowForm(!showForm)}>
-                    + Thêm khoản nợ
+        <div className="debt-page-container">
+            <div className="debt-page-header">
+                <h2>💳 Debt Management</h2>
+                <button className="debt-btn-primary" onClick={() => setShowForm(!showForm)}>
+                    + Add debt
                 </button>
             </div>
 
             {showForm && (
-                <div style={s.card}>
-                    <h3 style={s.cardTitle}>Thêm khoản nợ mới</h3>
-                    <div style={s.grid2}>
-                        <div>
-                            <label style={s.label}>Tên khoản nợ</label>
-                            <input style={s.input} placeholder="VD: Vay mua xe"
+                <div className="debt-form-card">
+                    <h3>Add new debt</h3>
+                    <div className="debt-grid-2">
+                        <div className="debt-form-group">
+                            <label>Debt name</label>
+                            <input
+                                placeholder="e.g., Car loan"
                                 value={form.debtName}
                                 onChange={e => setForm({ ...form, debtName: e.target.value })} />
                         </div>
-                        <div>
-                            <label style={s.label}>Tổng số nợ (₫)</label>
-                            <input style={s.input} type="number" placeholder="VD: 10000000"
+
+                        <div className="debt-form-group">
+                            <label>Total debt (₫)</label>
+                            <input
+                                type="number"
+                                placeholder="e.g., 10000000"
                                 value={form.totalAmount}
                                 onChange={e => setForm({ ...form, totalAmount: e.target.value })} />
                         </div>
-                        <div>
-                            <label style={s.label}>Lãi suất (%/năm)</label>
-                            <input style={s.input} type="number" placeholder="VD: 5.5"
+
+                        <div className="debt-form-group">
+                            <label>Interest rate (%/year)</label>
+                            <input
+                                type="number"
+                                placeholder="e.g., 5.5"
                                 value={form.interestRate}
                                 onChange={e => setForm({ ...form, interestRate: e.target.value })} />
                         </div>
-                        <div>
-                            <label style={s.label}>Ngày đến hạn</label>
-                            <input style={s.input} type="date"
+
+                        <div className="debt-form-group">
+                            <label>Due date</label>
+                            <input
+                                type="date"
                                 value={form.dueDate}
                                 onChange={e => setForm({ ...form, dueDate: e.target.value })} />
                         </div>
                     </div>
-                    <div style={s.row}>
-                        <button style={s.btnPrimary} onClick={handleCreate}>💾 Lưu</button>
-                        <button style={s.btnSecondary} onClick={() => setShowForm(false)}>Hủy</button>
+
+                    <div className="debt-actions">
+                        <button className="debt-btn-primary" onClick={handleCreate}>💾 Save</button>
+                        <button className="debt-btn-secondary" onClick={() => setShowForm(false)}>Cancel</button>
                     </div>
                 </div>
             )}
 
             {debts.length === 0 ? (
-                <div style={s.empty}>🎉 Không có khoản nợ nào!</div>
+                <div className="debt-empty">🎉 No debts yet!</div>
             ) : debts.map(debt => (
-                <div key={debt.id} style={s.card}>
-                    <div style={s.debtTop}>
+                <div key={debt.id} className="debt-card">
+                    <div className="debt-top">
                         <div>
-                            <h3 style={s.debtName}>{debt.debtName}</h3>
-                            <span style={{
-                                ...s.badge,
-                                background: debt.status === "paid_off" ? "#22c55e" : "#f59e0b"
-                            }}>
-                                {debt.status === "paid_off" ? "✅ Đã trả hết" : "⏳ Còn nợ"}
+                            <h3 className="debt-name">{debt.debtName}</h3>
+                            <span
+                                className={`debt-badge ${debt.status === "paid_off" ? "paid-off" : "active"}`}
+                            >
+                                {debt.status === "paid_off" ? "✅ Paid off" : "⏳ Outstanding"}
                             </span>
                         </div>
-                        <div style={s.row}>
+
+                        <div className="debt-actions-inline">
                             {debt.status !== "paid_off" && (
-                                <button style={s.btnPrimary}
+                                <button
+                                    className="debt-btn-primary"
                                     onClick={() => setShowPayForm(showPayForm === debt.id ? null : debt.id)}>
-                                    💸 Trả nợ
+                                    💸 Make payment
                                 </button>
                             )}
-                            <button style={s.btnSecondary}
-                                onClick={() => handleHistory(debt.id)}>
-                                📋 Lịch sử
+
+                            <button className="debt-btn-secondary" onClick={() => handleHistory(debt.id)}>
+                                📋 History
                             </button>
                         </div>
                     </div>
 
-                    <div style={s.grid4}>
-                        <div style={s.infoBox}>
-                            <span style={s.infoLabel}>Tổng nợ</span>
-                            <span style={s.infoValue}>{formatMoney(debt.totalAmount)}</span>
+                    <div className="debt-grid-4">
+                        <div className="debt-info-box">
+                            <span className="debt-info-label">Total debt</span>
+                            <span className="debt-info-value">{formatMoney(debt.totalAmount)}</span>
                         </div>
-                        <div style={s.infoBox}>
-                            <span style={s.infoLabel}>Còn lại</span>
-                            <span style={{ ...s.infoValue, color: "#ef4444" }}>
+
+                        <div className="debt-info-box">
+                            <span className="debt-info-label">Remaining</span>
+                            <span className="debt-info-value remaining">
                                 {formatMoney(debt.remainingAmount)}
                             </span>
                         </div>
-                        <div style={s.infoBox}>
-                            <span style={s.infoLabel}>Lãi suất</span>
-                            <span style={s.infoValue}>{debt.interestRate}%/năm</span>
+
+                        <div className="debt-info-box">
+                            <span className="debt-info-label">Interest</span>
+                            <span className="debt-info-value">{debt.interestRate}%/year</span>
                         </div>
-                        <div style={s.infoBox}>
-                            <span style={s.infoLabel}>Đến hạn</span>
-                            <span style={s.infoValue}>
-                                {new Date(debt.dueDate).toLocaleDateString("vi-VN")}
+
+                        <div className="debt-info-box">
+                            <span className="debt-info-label">Due date</span>
+                            <span className="debt-info-value">
+                                {debt.dueDate
+                                    ? new Date(debt.dueDate).toLocaleDateString("en-US")
+                                    : "None"}
                             </span>
                         </div>
                     </div>
 
-                    <div style={{ marginTop: 12 }}>
-                        <div style={s.progressBar}>
-                            <div style={{
-                                ...s.progressFill,
-                                width: `${calcPercent(debt)}%`
-                            }} />
+                    <div className="debt-progress-section">
+                        <div className="debt-progress-bar">
+                            <div className="debt-progress-fill" style={{ width: `${calcPercent(debt)}%` }} />
                         </div>
-                        <span style={s.progressText}>Đã trả: {calcPercent(debt)}%</span>
+                        <span className="debt-progress-text">Paid: {calcPercent(debt)}%</span>
                     </div>
 
                     {showPayForm === debt.id && (
-                        <div style={s.subCard}>
-                            <h4 style={s.cardTitle}>💸 Trả nợ</h4>
-                            <div style={s.grid2}>
-                                <div>
-                                    <label style={s.label}>Số tiền trả (₫)</label>
-                                    <input style={s.input} type="number"
-                                        placeholder={`Tối đa: ${formatMoney(debt.remainingAmount)}`}
+                        <div className="debt-sub-card">
+                            <h4>💸 Make a payment</h4>
+
+                            <div className="debt-grid-2">
+                                <div className="debt-form-group">
+                                    <label>Payment amount (₫)</label>
+                                    <input
+                                        type="number"
+                                        placeholder={`Max: ${formatMoney(debt.remainingAmount)}`}
                                         value={payAmount}
                                         onChange={e => setPayAmount(e.target.value)} />
                                 </div>
-                                <div>
-                                    <label style={s.label}>Ghi chú</label>
-                                    <input style={s.input} placeholder="VD: Trả lần 1"
+
+                                <div className="debt-form-group">
+                                    <label>Note</label>
+                                    <input
+                                        placeholder="e.g., Payment 1"
                                         value={payNote}
                                         onChange={e => setPayNote(e.target.value)} />
                                 </div>
                             </div>
-                            <div style={s.row}>
-                                <button style={s.btnPrimary} onClick={() => handlePay(debt)}>
-                                    Xác nhận
+
+                            <div className="debt-actions">
+                                <button className="debt-btn-primary" onClick={() => handlePay(debt)}>
+                                    Confirm
                                 </button>
-                                <button style={s.btnSecondary} onClick={() => setShowPayForm(null)}>
-                                    Hủy
+                                <button className="debt-btn-secondary" onClick={() => setShowPayForm(null)}>
+                                    Cancel
                                 </button>
                             </div>
                         </div>
                     )}
 
                     {showHistory === debt.id && (
-                        <div style={s.subCard}>
-                            <h4 style={s.cardTitle}>📋 Lịch sử trả nợ</h4>
+                        <div className="debt-sub-card">
+                            <h4>📋 Payment history</h4>
+
                             {history.length === 0 ? (
-                                <p style={{ color: "#888" }}>Chưa có lịch sử</p>
+                                <p className="debt-history-empty">No history yet</p>
                             ) : history.map(h => (
-                                <div key={h.id} style={s.historyRow}>
+                                <div key={h.id} className="debt-history-row">
                                     <span>{new Date(h.paymentDate).toLocaleDateString("vi-VN")}</span>
-                                    <span style={{ color: "#22c55e", fontWeight: "bold" }}>
+                                    <span className="debt-history-amount">
                                         -{formatMoney(h.amountPaid)}
                                     </span>
-                                    <span style={{ color: "#888" }}>{h.note}</span>
+                                    <span className="debt-history-note">{h.note}</span>
                                 </div>
                             ))}
-                            <button style={{ ...s.btnSecondary, marginTop: 8 }}
-                                onClick={() => setShowHistory(null)}>
-                                Đóng
+
+                            <button className="debt-btn-secondary debt-btn-close" onClick={() => setShowHistory(null)}>
+                                Close
                             </button>
                         </div>
                     )}
@@ -276,30 +296,3 @@ export default function DebtPage() {
         </div>
     );
 }
-
-const s = {
-    container: { maxWidth: 800, margin: "0 auto", padding: 24, fontFamily: "sans-serif", background: "#f9fafb", minHeight: "100vh" },
-    header: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 },
-    title: { fontSize: 24, fontWeight: "bold", margin: 0 },
-    card: { background: "#fff", borderRadius: 12, padding: 20, marginBottom: 16, boxShadow: "0 2px 8px rgba(0,0,0,0.07)" },
-    subCard: { background: "#f9fafb", borderRadius: 8, padding: 16, marginTop: 12 },
-    cardTitle: { fontSize: 15, fontWeight: "bold", marginBottom: 12, marginTop: 0 },
-    grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 },
-    grid4: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 12, marginTop: 12 },
-    row: { display: "flex", gap: 8, alignItems: "center" },
-    label: { display: "block", fontSize: 12, color: "#888", marginBottom: 4 },
-    input: { padding: "8px 12px", borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 14, width: "100%", boxSizing: "border-box" },
-    btnPrimary: { padding: "8px 16px", background: "#6366f1", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 14, whiteSpace: "nowrap" },
-    btnSecondary: { padding: "8px 16px", background: "#f3f4f6", color: "#333", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 14, whiteSpace: "nowrap" },
-    debtTop: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 },
-    debtName: { fontSize: 18, fontWeight: "bold", margin: "0 0 6px 0" },
-    badge: { display: "inline-block", padding: "2px 10px", borderRadius: 20, color: "#fff", fontSize: 12 },
-    infoBox: { display: "flex", flexDirection: "column", gap: 4 },
-    infoLabel: { fontSize: 12, color: "#888" },
-    infoValue: { fontSize: 14, fontWeight: "bold" },
-    progressBar: { height: 8, background: "#f3f4f6", borderRadius: 4, overflow: "hidden" },
-    progressFill: { height: "100%", background: "#6366f1", borderRadius: 4, transition: "width 0.3s" },
-    progressText: { fontSize: 12, color: "#888", marginTop: 4, display: "block" },
-    historyRow: { display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: "1px solid #f3f4f6" },
-    empty: { textAlign: "center", padding: 48, color: "#888", fontSize: 16, background: "#fff", borderRadius: 12 }
-};
