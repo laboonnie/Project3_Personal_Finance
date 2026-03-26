@@ -1,0 +1,122 @@
+.category-table {
+    padding: 25px;
+    background: white;
+    border-radius: 14px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+/* header create + search */
+.table-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+/* search box */
+.search-box {
+    padding: 8px 14px;
+    border-radius: 20px;
+    border: 1px solid #ddd;
+    outline: none;
+    transition: 0.3s;
+}
+
+.search-box:focus {
+    border-color: #4cafef;
+    box-shadow: 0 0 6px rgba(76,175,239,0.3);
+}
+
+/* table */
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+th {
+    background: #f4f6fa;
+    padding: 14px;
+    text-align: left;
+}
+
+td {
+    padding: 12px;
+    border-bottom: 1px solid #eee;
+}
+
+/* button base */
+button {
+    margin: 5px;
+    padding: 7px 16px;
+    border: none;
+    border-radius: 25px;
+    color: white;
+    cursor: pointer;
+    font-weight: 500;
+    transition: 0.3s;
+}
+
+/* create button */
+.create-btn {
+    background: linear-gradient(45deg, #4cafef, #3a8dde);
+    border-radius: 15px;
+}
+
+.create-btn:hover {
+    transform: translateY(-2px);
+}
+
+/* edit button */
+.edit-btn {
+    background: linear-gradient(45deg, #ffc107, #ffb300);
+    border-radius: 15px;
+}
+
+/* delete button */
+.delete-btn {
+    background: linear-gradient(45deg, #ff4d4f, #d9363e);
+    border-radius: 15px;
+}
+
+/* hover effect */
+button:hover {
+    opacity: 0.9;
+}
+
+/* spacing action buttons */
+.action-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+/* pagination */
+.pagination {
+    margin-top: 20px;
+}
+
+.pagination button {
+    background: #e6f0ff;
+    color: #4cafef;
+}
+
+.pagination button:hover {
+    background: #4cafef;
+    color: white;
+}
+
+/* form */
+.category-form {
+    margin-top: 25px;
+    background: #fafafa;
+    padding: 25px;
+    border-radius: 12px;
+}
+
+.category-form input,
+.category-form select {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 14px;
+    border-radius: 8px;
+    border: 1px solid #ddd;
+}

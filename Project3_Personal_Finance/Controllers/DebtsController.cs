@@ -79,7 +79,7 @@ namespace Project3_Personal_Finance.Controllers
         {
             debt.User = null;
             debt.RemainingAmount ??= debt.TotalAmount;
-            debt.Status ??= "active";
+            //debt.Status ??= "active";
             _context.Debts.Add(debt);
             await _context.SaveChangesAsync();
 
