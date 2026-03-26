@@ -35,13 +35,10 @@ export default function DebtPage() {
     const [debts, setDebts] = useState([]);
     const [showForm, setShowForm] = useState(false);
     const [showPayForm, setShowPayForm] = useState(null);
-    const [showHistory, setShowHistory] = useState(null);
-    const [history, setHistory] = useState([]);
     const [form, setForm] = useState({
         debtName: "", totalAmount: "", interestRate: "", dueDate: ""
     });
     const [payAmount, setPayAmount] = useState("");
-    const [payNote, setPayNote] = useState("");
 
     useEffect(() => { loadDebts(); }, []);
 
@@ -62,10 +59,8 @@ export default function DebtPage() {
             userId,
             debtName: form.debtName,
             totalAmount: parseFloat(form.totalAmount),
-            remainingAmount: parseFloat(form.totalAmount),
             interestRate: parseFloat(form.interestRate) || 0,
-            dueDate: form.dueDate,
-            status: "active"
+            dueDate: form.dueDate
         });
         setForm({ debtName: "", totalAmount: "", interestRate: "", dueDate: "" });
         setShowForm(false);
@@ -81,30 +76,13 @@ export default function DebtPage() {
 
         await debtApi.update(debt.id, {
             ...debt,
-            user: null,
-            payments: [],
-            remainingAmount: newRemaining,
-            status: newRemaining === 0 ? "paid_off" : "active"
-        });
-
-        await debtApi.addPayment({
-            debtId: debt.id,
-            amountPaid: amount,
-            paymentDate: new Date().toISOString(),
-            note: payNote || ""
+            remainingAmount: newRemaining
         });
 
         setShowPayForm(null);
         setPayAmount("");
-        setPayNote("");
 
         setTimeout(() => loadDebts(), 200);
-    };
-
-    const handleHistory = async (debtId) => {
-        const data = await debtApi.getPayments(debtId);
-        setHistory(data);
-        setShowHistory(debtId);
     };
 
     const formatMoney = (amount) =>
@@ -116,6 +94,8 @@ export default function DebtPage() {
         if (total === 0) return 0;
         return Math.round(((total - remaining) / total) * 100);
     };
+
+    const isDebtPaidOff = (debt) => Number(debt.remainingAmount) <= 0;
 
     return (
         <div className="debt-page-container">
@@ -180,24 +160,20 @@ export default function DebtPage() {
                         <div>
                             <h3 className="debt-name">{debt.debtName}</h3>
                             <span
-                                className={`debt-badge ${debt.status === "paid_off" ? "paid-off" : "active"}`}
+                                className={`debt-badge ${isDebtPaidOff(debt) ? "paid-off" : "active"}`}
                             >
-                                {debt.status === "paid_off" ? "✅ Paid off" : "⏳ Outstanding"}
+                                {isDebtPaidOff(debt) ? "✅ Paid off" : "⏳ Outstanding"}
                             </span>
                         </div>
 
                         <div className="debt-actions-inline">
-                            {debt.status !== "paid_off" && (
+                            {!isDebtPaidOff(debt) && (
                                 <button
                                     className="debt-btn-primary"
                                     onClick={() => setShowPayForm(showPayForm === debt.id ? null : debt.id)}>
                                     💸 Make payment
                                 </button>
                             )}
-
-                            <button className="debt-btn-secondary" onClick={() => handleHistory(debt.id)}>
-                                📋 History
-                            </button>
                         </div>
                     </div>
 
@@ -249,14 +225,6 @@ export default function DebtPage() {
                                         value={payAmount}
                                         onChange={e => setPayAmount(e.target.value)} />
                                 </div>
-
-                                <div className="debt-form-group">
-                                    <label>Note</label>
-                                    <input
-                                        placeholder="e.g., Payment 1"
-                                        value={payNote}
-                                        onChange={e => setPayNote(e.target.value)} />
-                                </div>
                             </div>
 
                             <div className="debt-actions">
@@ -267,28 +235,6 @@ export default function DebtPage() {
                                     Cancel
                                 </button>
                             </div>
-                        </div>
-                    )}
-
-                    {showHistory === debt.id && (
-                        <div className="debt-sub-card">
-                            <h4>📋 Payment history</h4>
-
-                            {history.length === 0 ? (
-                                <p className="debt-history-empty">No history yet</p>
-                            ) : history.map(h => (
-                                <div key={h.id} className="debt-history-row">
-                                    <span>{new Date(h.paymentDate).toLocaleDateString("vi-VN")}</span>
-                                    <span className="debt-history-amount">
-                                        -{formatMoney(h.amountPaid)}
-                                    </span>
-                                    <span className="debt-history-note">{h.note}</span>
-                                </div>
-                            ))}
-
-                            <button className="debt-btn-secondary debt-btn-close" onClick={() => setShowHistory(null)}>
-                                Close
-                            </button>
                         </div>
                     )}
                 </div>

@@ -1,8 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Project3_Personal_Finance.Models;
@@ -79,7 +76,6 @@ namespace Project3_Personal_Finance.Controllers
         {
             debt.User = null;
             debt.RemainingAmount ??= debt.TotalAmount;
-            debt.Status ??= "active";
             _context.Debts.Add(debt);
             await _context.SaveChangesAsync();
 
