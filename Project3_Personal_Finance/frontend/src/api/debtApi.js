@@ -48,8 +48,7 @@ export const debtApi = {
             totalAmount: Number(data.totalAmount),
             remainingAmount: Number(data.remainingAmount),
             interestRate: Number(data.interestRate) || 0,
-            dueDate: toDateOnly(data.dueDate),
-            status: data.status
+            dueDate: toDateOnly(data.dueDate)
         };
 
         const res = await fetch(`${BASE_URL}/Debts/${id}`, {
@@ -73,36 +72,5 @@ export const debtApi = {
         });
 
         if (!res.ok) throw new Error("Delete failed");
-    },
-
-    getPayments: async (debtId) => {
-        const res = await fetch(`${BASE_URL}/DebtPayments`);
-        if (!res.ok) throw new Error("Load payments fail");
-
-        const all = await res.json();
-        return all.filter(p => Number(p.debtId) === Number(debtId));
-    },
-
-    addPayment: async (data) => {
-        const payload = {
-            debtId: data.debtId,
-            amountPaid: Number(data.amountPaid),
-            paymentDate: new Date().toISOString(),
-            note: data.note || ""
-        };
-
-        const res = await fetch(`${BASE_URL}/DebtPayments`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-        });
-
-        if (!res.ok) {
-            const err = await res.text();
-            console.error("PAYMENT ERROR:", err);
-            throw new Error(err);
-        }
-
-        return res.json();
     }
 };
