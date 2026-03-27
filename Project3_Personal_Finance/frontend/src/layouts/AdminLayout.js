@@ -1,27 +1,32 @@
 import { useState } from "react";
-import Sidebar from "../components/layout/Sidebar";
-import Header from "../components/layout/Header";
 import { Outlet } from "react-router-dom";
+import SidebarAdmin from "../components/layout/SidebarAdmin";
+import Header from "../components/layout/Header";
 
-export default function MainLayout() {
+export default function AdminLayout() {
 
   const [collapsed, setCollapsed] = useState(false);
 
   return (
+
     <div className="d-flex">
 
-      <Sidebar collapsed={collapsed} />
+      <SidebarAdmin collapsed={collapsed} />
 
       <div className="flex-grow-1">
 
         <Header toggleSidebar={() => setCollapsed(!collapsed)} />
 
         <div className="p-4 bg-light min-vh-100">
+
           <Outlet />
+
         </div>
 
       </div>
 
     </div>
+
   );
+
 }

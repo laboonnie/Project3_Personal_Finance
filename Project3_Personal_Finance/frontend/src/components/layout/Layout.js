@@ -1,4 +1,5 @@
-import Sidebar from "./Sidebar";
+import SidebarAdmin from "./SidebarAdmin";
+import Sidebar from "./SidebarAdmin";
 import Topbar from "./Topbar";
 import "./layout.css";
 
@@ -8,7 +9,7 @@ export default function Layout({children}){
 
         <div className="layout">
 
-            <Sidebar/>
+            <SidebarAdmin/>
 
             <div className="main">
 

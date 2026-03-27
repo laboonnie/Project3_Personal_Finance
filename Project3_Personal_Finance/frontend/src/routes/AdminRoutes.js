@@ -1,6 +1,9 @@
-import { Routes, Route } from "react-router-dom";
-import UsersPage from "../pages/admin/UsersPage";
-import CategoriesPage from "../pages/admin/CategoriesPage";
+import { Routes, Route, Navigate } from "react-router-dom";
+import AdminLayout from "../layouts/AdminLayout";
+
+import AdminDashboard from "../pages/admin/AdminDashboard";
+import Users from "../pages/admin/UsersPage";
+import Categories from "../pages/admin/CategoriesPage";
 
 export default function AdminRoutes() {
 
@@ -8,11 +11,20 @@ export default function AdminRoutes() {
 
     <Routes>
 
-      <Route path="users" element={<UsersPage />} />
+      <Route element={<AdminLayout />}>
 
-      <Route path="categories" element={<CategoriesPage />} />
+        <Route path="dashboard" element={<AdminDashboard />} />
+
+        <Route path="users" element={<Users />} />
+
+        <Route path="categories" element={<Categories />} />
+
+        <Route path="*" element={<Navigate to="dashboard" />} />
+
+      </Route>
 
     </Routes>
 
   );
+
 }
