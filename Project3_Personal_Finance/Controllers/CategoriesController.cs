@@ -25,7 +25,17 @@ namespace Project3_Personal_Finance.Controllers
         [HttpGet]
         public async Task<IActionResult> GetCategories()
         {
-            var categories = await _context.Categories.ToListAsync();
+                 var categories = await _context.Categories
+                .Include(c => c.Jar)
+                .Select(c => new
+                {
+                    c.Id,
+                    c.Name,
+                    c.Type,
+                    c.JarId,
+                    JarName = c.Jar.JarName
+                })
+                .ToListAsync();
             return Ok(categories);
         }
 
@@ -33,7 +43,18 @@ namespace Project3_Personal_Finance.Controllers
         [HttpGet("{id}")]
         public async Task<IActionResult> GetCategory(int id)
         {
-            var category = await _context.Categories.FindAsync(id);
+            var category = await _context.Categories
+             .Include(c => c.Jar)
+             .Where(c => c.Id == id)
+             .Select(c => new
+             {
+                 c.Id,
+                 c.Name,
+                 c.Type,
+                 c.JarId,
+                 JarName = c.Jar.JarName
+             })
+             .FirstOrDefaultAsync();
 
             if (category == null)
                 return NotFound();

@@ -1,0 +1,47 @@
+.modal-overlay{
+
+    position:fixed;
+
+    top:0;
+
+    left:0;
+
+    width:100%;
+
+    height:100%;
+
+    background:rgba(0,0,0,0.4);
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+}
+
+.modal-box{
+
+    background:white;
+
+    padding:30px;
+
+    border-radius:10px;
+
+    width:400px;
+
+}
+
+.close-btn{
+
+    float:right;
+
+    border:none;
+
+    background:red;
+
+    color:white;
+
+    padding:5px 10px;
+
+}

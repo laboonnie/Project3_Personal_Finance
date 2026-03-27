@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { transactionApi } from '../../api/transactionApi';
-import categoryApi from '../../api/categoryApi';  
+import categoryApi from '../../api/categoryApi';
 import './Transactions.css';
 
-const TransactionForm = ({ userId, onSuccess, onCancel }) => {
+const TransactionForm = ({ onSuccess, onCancel }) => {  // ✅ BỎ userId
     const [formData, setFormData] = useState({
-        userId: userId,
         categoryId: '',
         amount: '',
         type: 'Expense',
@@ -17,40 +16,28 @@ const TransactionForm = ({ userId, onSuccess, onCancel }) => {
     const [loading, setLoading] = useState(false);
     const [loadingCategories, setLoadingCategories] = useState(true);
     const [error, setError] = useState('');
+    const [allCategories, setAllCategories] = useState([]);
 
     useEffect(() => {
-        loadCategories();
+        loadAllCategories();
     }, []);
 
     useEffect(() => {
-        if (formData.type) {
-            loadCategoriesByType(formData.type);
-        }
-    }, [formData.type]);
-
-    const loadCategoriesByType = async (type) => {
-        try {
-            setLoadingCategories(true);
-            //  Dùng categoryApi.getAll() và filter thủ công
-            const response = await categoryApi.getAll();
-            const filtered = response.data.filter(cat => cat.type === type);
+        if (formData.type && allCategories.length > 0) {
+            const filtered = allCategories.filter(cat => cat.type === formData.type);
             setCategories(filtered);
-        } catch (error) {
-            console.error('Error loading categories:', error);
-            setCategories([]);
-        } finally {
             setLoadingCategories(false);
         }
-    };
+    }, [formData.type, allCategories]);
 
-    const loadCategories = async () => {
+    const loadAllCategories = async () => {
         try {
             setLoadingCategories(true);
             const response = await categoryApi.getAll();
-            setCategories(response.data);
+            setAllCategories(response.data);
         } catch (error) {
             console.error('Error loading categories:', error);
-            setCategories([]);
+            setAllCategories([]);
         } finally {
             setLoadingCategories(false);
         }
@@ -79,7 +66,6 @@ const TransactionForm = ({ userId, onSuccess, onCancel }) => {
 
         try {
             const dataToSend = {
-                userId: userId,
                 categoryId: parseInt(formData.categoryId),
                 amount: parseFloat(formData.amount),
                 type: formData.type,
@@ -87,14 +73,13 @@ const TransactionForm = ({ userId, onSuccess, onCancel }) => {
                 note: formData.note || ''
             };
 
-            const response = await transactionApi.create(dataToSend);
+            await transactionApi.create(dataToSend);  // ✅ KHÔNG userId
 
             if (onSuccess) {
-                onSuccess(response.data);
+                onSuccess();
             }
 
             setFormData({
-                userId: userId,
                 categoryId: '',
                 amount: '',
                 type: 'Expense',
@@ -107,6 +92,7 @@ const TransactionForm = ({ userId, onSuccess, onCancel }) => {
             setLoading(false);
         }
     };
+
 
     return (
         <div className="transaction-form-container">
