@@ -18,49 +18,79 @@ import "./App.css";
 function App() {
   return (
     <BrowserRouter>
-
       <Routes>
-
         <Route path="/login" element={<Login />} />
-
         <Route path="/register" element={<Register />} />
-        
-        {/* ADMIN ROUTES */}
+
+        <Route path="/dashboard" element={
+          <ProtectedRoute>
+            <MainLayout>
+              <Dashboard />
+            </MainLayout>
+          </ProtectedRoute>
+        } />
         <Route
-          path="/admin/*"
+          path="/transactions"
           element={
             <ProtectedRoute>
-
-              <AdminRoutes />
-
+              <MainLayout>
+                <Transactions />
+              </MainLayout>
             </ProtectedRoute>
           }
         />
-        {/* USER ROUTES */}
+        <Route
+          path="/budgets"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <Budgets />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/goals"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <Goals />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/debts"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <Debts />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/investments"
+          element={
+            <ProtectedRoute>
+              <MainLayout>
+                <Investments />
+              </MainLayout>
+            </ProtectedRoute>
+          }
+        />
 
-        <Route element={<ProtectedRoute><MainLayout /></ProtectedRoute>}>
+        {/* redirect trang chủ */}
+        {/* <Route path="/" element={<Navigate to="/admin/users" />} /> */}
 
-          <Route path="/dashboard" element={<Dashboard />} />
+        {/* admin routes */}
+        <Route path="/admin/*" element={<AdminRoutes />} />
 
-          <Route path="/transactions" element={<Transactions />} />
-
-          <Route path="/budgets" element={<Budgets />} />
-
-          <Route path="/goals" element={<Goals />} />
-
-          <Route path="/debts" element={<Debts />} />
-
-          <Route path="/investments" element={<Investments />} />
-
-        </Route>
+        {/* Default route */}
         <Route path="*" element={<Navigate to="/login" replace />} />
-
       </Routes>
-
       <ToastContainer position="top-right" autoClose={3000} />
-
     </BrowserRouter>
   );
 }
-
 export default App;
