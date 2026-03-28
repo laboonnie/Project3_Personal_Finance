@@ -139,7 +139,6 @@ const Register = () => {
                                 />
                             </div>
                         </div>
-                        <div className='forgot-password'>Lost Password? <span>Click Here!</span></div>
                         <div className='submit-container'>
                            <div className="submit gray" onClick={() => navigate('/login')}>Login</div>
                             <div className="submit">

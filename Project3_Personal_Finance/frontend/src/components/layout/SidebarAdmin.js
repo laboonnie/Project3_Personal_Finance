@@ -22,9 +22,7 @@ export default function SidebarAdmin({ collapsed }) {
     >
 
       <h5 className="text-center mb-4">
-
         {collapsed ? "🛠️" : "🛠️ Admin Panel"}
-
       </h5>
 
       {
@@ -34,7 +32,7 @@ export default function SidebarAdmin({ collapsed }) {
             key={item.path}
             to={item.path}
             className={`d-flex align-items-center mb-3 text-decoration-none text-white p-2 rounded
-            ${location.pathname === item.path ? "active-menu" : ""}
+              ${location.pathname.startsWith(item.path) ? "active-menu" : ""}
             `}
           >
 
@@ -54,5 +52,4 @@ export default function SidebarAdmin({ collapsed }) {
 
     </div>
   );
-
 }
