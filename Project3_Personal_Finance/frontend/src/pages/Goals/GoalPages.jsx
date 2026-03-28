@@ -1,9 +1,38 @@
 ﻿import { useState, useEffect } from "react";
+import "./GoalPage.css";
 
 const BASE_URL = "http://localhost:5084/api";
-const userId = 1; // hardcode tạm
+
+const decodeBase64Url = (value) => {
+    const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
+    return atob(padded);
+};
+
+const getCurrentUserId = () => {
+    try {
+        const token = localStorage.getItem("token");
+        if (!token) return null;
+
+        const parts = token.split(".");
+        if (parts.length < 2) return null;
+
+        const payload = JSON.parse(decodeBase64Url(parts[1]));
+        const rawUserId =
+            payload.nameid ||
+            payload.sub ||
+            payload.userId ||
+            payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"];
+
+        const parsedUserId = Number(rawUserId);
+        return Number.isInteger(parsedUserId) && parsedUserId > 0 ? parsedUserId : null;
+    } catch {
+        return null;
+    }
+};
 
 export default function Goals() {
+    const userId = getCurrentUserId();
     const [goals, setGoals] = useState([]);
     const [showForm, setShowForm] = useState(false);
     const [showDeposit, setShowDeposit] = useState(null);
@@ -15,13 +44,19 @@ export default function Goals() {
     useEffect(() => { loadGoals(); }, []);
 
     const loadGoals = async () => {
+        if (!userId) {
+            setGoals([]);
+            return;
+        }
+
         const res = await fetch(`${BASE_URL}/Goals`);
         const data = await res.json();
         setGoals(data.filter(g => g.userId === userId));
     };
 
     const handleCreate = async () => {
-        if (!form.goalName || !form.targetAmount) return alert("Điền đầy đủ thông tin!");
+        if (!userId) return alert("Unable to retrieve user information. Please log in again!");
+        if (!form.goalName || !form.targetAmount) return alert("Please fill in all required information!");
         const res = await fetch(`${BASE_URL}/Goals`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -29,10 +64,7 @@ export default function Goals() {
                 userId,
                 goalName: form.goalName,
                 targetAmount: parseFloat(form.targetAmount),
-                deadline: form.deadline,
-                currentAmount: 0,
-                status: "in-progress",
-                user: null
+                deadline: form.deadline || null
             })
         });
         if (res.ok) {
@@ -43,7 +75,7 @@ export default function Goals() {
     };
 
     const handleDeposit = async (goalId) => {
-        if (!depositAmount) return alert("Nhập số tiền!");
+        if (!depositAmount) return alert("Please enter an amount!");
         const res = await fetch(`${BASE_URL}/Goals/${goalId}/deposit`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -57,7 +89,7 @@ export default function Goals() {
     };
 
     const handleDelete = async (id) => {
-        if (!window.confirm("Xóa goal này?")) return;
+        if (!window.confirm("Delete this goal?")) return;
         await fetch(`${BASE_URL}/Goals/${id}`, { method: "DELETE" });
         loadGoals();
     };
@@ -72,140 +104,125 @@ export default function Goals() {
     const formatMoney = (amount) =>
         Number(amount).toLocaleString("vi-VN") + " ₫";
 
-    const getStatusColor = (status) => {
-        if (status === "completed") return "#22c55e";
-        return "#f59e0b";
-    };
-
     const getStatusText = (status) => {
-        if (status === "completed") return "✅ Hoàn thành";
-        return "⏳ Đang thực hiện";
+        if (status === "completed") return "✅ Completed";
+        return "⏳ In progress";
     };
 
     return (
-        <div style={s.container}>
-            {/* Header */}
-            <div style={s.header}>
-                <h2 style={s.title}>🎯 Mục tiêu tài chính</h2>
-                <button style={s.btnPrimary} onClick={() => setShowForm(!showForm)}>
-                    + Thêm mục tiêu
+        <div className="goal-page-container">
+            <div className="goal-page-header">
+                <h2>🎯 Financial Goals</h2>
+                <button className="goal-btn-primary" onClick={() => setShowForm(!showForm)}>
+                    + Add goal
                 </button>
             </div>
 
-            {/* Form thêm goal */}
             {showForm && (
-                <div style={s.card}>
-                    <h3 style={s.cardTitle}>Thêm mục tiêu mới</h3>
-                    <div style={s.grid2}>
-                        <div>
-                            <label style={s.label}>Tên mục tiêu</label>
-                            <input style={s.input} placeholder="VD: Du lịch Đà Nẵng"
+                <div className="goal-form-card">
+                    <h3>Add new goal</h3>
+                    <div className="goal-grid-2">
+                        <div className="goal-form-group">
+                            <label>Goal name</label>
+                            <input placeholder="e.g., Da Nang trip"
                                 value={form.goalName}
                                 onChange={e => setForm({ ...form, goalName: e.target.value })} />
                         </div>
-                        <div>
-                            <label style={s.label}>Số tiền mục tiêu (₫)</label>
-                            <input style={s.input} type="number" placeholder="VD: 10000000"
+                        <div className="goal-form-group">
+                            <label>Target amount (₫)</label>
+                            <input type="number" placeholder="e.g., 10000000"
                                 value={form.targetAmount}
                                 onChange={e => setForm({ ...form, targetAmount: e.target.value })} />
                         </div>
-                        <div>
-                            <label style={s.label}>Deadline</label>
-                            <input style={s.input} type="date"
+                        <div className="goal-form-group">
+                            <label>Deadline</label>
+                            <input type="date"
                                 value={form.deadline}
                                 onChange={e => setForm({ ...form, deadline: e.target.value })} />
                         </div>
                     </div>
-                    <div style={s.row}>
-                        <button style={s.btnPrimary} onClick={handleCreate}>💾 Lưu</button>
-                        <button style={s.btnSecondary} onClick={() => setShowForm(false)}>Hủy</button>
+                    <div className="goal-actions">
+                        <button className="goal-btn-primary" onClick={handleCreate}>💾 Save</button>
+                        <button className="goal-btn-secondary" onClick={() => setShowForm(false)}>Cancel</button>
                     </div>
                 </div>
             )}
 
-            {/* Danh sách goal */}
             {goals.length === 0 ? (
-                <div style={s.empty}>🎯 Chưa có mục tiêu nào!</div>
+                <div className="goal-empty">🎯 No goals yet!</div>
             ) : goals.map(goal => (
-                <div key={goal.id} style={s.card}>
-                    <div style={s.goalTop}>
+                <div key={goal.id} className="goal-card">
+                    <div className="goal-top">
                         <div>
-                            <h3 style={s.goalName}>{goal.goalName}</h3>
-                            <span style={{
-                                ...s.badge,
-                                background: getStatusColor(goal.status)
-                            }}>
+                            <h3 className="goal-name">{goal.goalName}</h3>
+                            <span className={`goal-badge ${goal.status === "completed" ? "completed" : "in-progress"}`}>
                                 {getStatusText(goal.status)}
                             </span>
                         </div>
-                        <div style={s.row}>
+                        <div className="goal-actions-inline">
                             {goal.status !== "completed" && (
-                                <button style={s.btnPrimary}
+                                <button className="goal-btn-primary"
                                     onClick={() => setShowDeposit(showDeposit === goal.id ? null : goal.id)}>
-                                    💰 Nạp tiền
+                                    💰 Deposit
                                 </button>
                             )}
-                            <button style={s.btnDanger} onClick={() => handleDelete(goal.id)}>
+                            <button className="goal-btn-danger" onClick={() => handleDelete(goal.id)}>
                                 🗑️
                             </button>
                         </div>
                     </div>
 
-                    {/* Thông tin */}
-                    <div style={s.grid3}>
-                        <div style={s.infoBox}>
-                            <span style={s.infoLabel}>Mục tiêu</span>
-                            <span style={s.infoValue}>{formatMoney(goal.targetAmount)}</span>
+                    <div className="goal-grid-3">
+                        <div className="goal-info-box">
+                            <span className="goal-info-label">Goal</span>
+                            <span className="goal-info-value">{formatMoney(goal.targetAmount)}</span>
                         </div>
-                        <div style={s.infoBox}>
-                            <span style={s.infoLabel}>Đã tích lũy</span>
-                            <span style={{ ...s.infoValue, color: "#22c55e" }}>
+                        <div className="goal-info-box">
+                            <span className="goal-info-label">Saved</span>
+                            <span className="goal-info-value saved">
                                 {formatMoney(goal.currentAmount)}
                             </span>
                         </div>
-                        <div style={s.infoBox}>
-                            <span style={s.infoLabel}>Deadline</span>
-                            <span style={s.infoValue}>
+                        <div className="goal-info-box">
+                            <span className="goal-info-label">Deadline</span>
+                            <span className="goal-info-value">
                                 {goal.deadline
                                     ? new Date(goal.deadline).toLocaleDateString("vi-VN")
-                                    : "Không có"}
+                                    : "None"}
                             </span>
                         </div>
                     </div>
 
-                    {/* Progress bar */}
-                    <div style={{ marginTop: 12 }}>
-                        <div style={s.progressBar}>
-                            <div style={{
-                                ...s.progressFill,
-                                width: `${calcPercent(goal)}%`,
-                                background: goal.status === "completed" ? "#22c55e" : "#6366f1"
-                            }} />
+                    <div className="goal-progress-section">
+                        <div className="goal-progress-bar">
+                            <div
+                                className={`goal-progress-fill ${goal.status === "completed" ? "completed" : "in-progress"}`}
+                                style={{ width: `${calcPercent(goal)}%` }}
+                            />
                         </div>
-                        <span style={s.progressText}>
-                            {calcPercent(goal)}% hoàn thành
+                        <span className="goal-progress-text">
+                            {calcPercent(goal)}% completed
                         </span>
                     </div>
 
-                    {/* Form nạp tiền */}
                     {showDeposit === goal.id && (
-                        <div style={s.subCard}>
-                            <h4 style={s.cardTitle}>💰 Nạp tiền vào mục tiêu</h4>
-                            <div style={s.grid2}>
-                                <div>
-                                    <label style={s.label}>Số tiền nạp (₫)</label>
-                                    <input style={s.input} type="number"
-                                        placeholder="VD: 1000000"
+                        <div className="goal-sub-card">
+                            <h4>💰 Deposit into goal</h4>
+                            <div className="goal-grid-2">
+                                <div className="goal-form-group">
+                                    <label>Deposit amount (₫)</label>
+                                    <input type="number"
+                                        placeholder="e.g., 1000000"
                                         value={depositAmount}
                                         onChange={e => setDepositAmount(e.target.value)} />
                                 </div>
                             </div>
-                            <div style={s.row}>
-                                <button style={s.btnPrimary} onClick={() => handleDeposit(goal.id)}>
-                                    Xác nhận
+                            <div className="goal-actions">
+                                <button className="goal-btn-primary" onClick={() => handleDeposit(goal.id)}>
+                                    Confirm
                                 </button>
-                                <button style={s.btnSecondary} onClick={() => setShowDeposit(null)}>
-                                    Hủy
+                                <button className="goal-btn-secondary" onClick={() => setShowDeposit(null)}>
+                                    Cancel
                                 </button>
                             </div>
                         </div>
@@ -215,30 +232,3 @@ export default function Goals() {
         </div>
     );
 }
-
-const s = {
-    container: { maxWidth: 800, margin: "0 auto", padding: 24, fontFamily: "sans-serif", background: "#f9fafb", minHeight: "100vh" },
-    header: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 },
-    title: { fontSize: 24, fontWeight: "bold", margin: 0 },
-    card: { background: "#fff", borderRadius: 12, padding: 20, marginBottom: 16, boxShadow: "0 2px 8px rgba(0,0,0,0.07)" },
-    subCard: { background: "#f9fafb", borderRadius: 8, padding: 16, marginTop: 12 },
-    cardTitle: { fontSize: 15, fontWeight: "bold", marginBottom: 12, marginTop: 0 },
-    grid2: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 },
-    grid3: { display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginTop: 12 },
-    row: { display: "flex", gap: 8, alignItems: "center" },
-    label: { display: "block", fontSize: 12, color: "#888", marginBottom: 4 },
-    input: { padding: "8px 12px", borderRadius: 8, border: "1px solid #e5e7eb", fontSize: 14, width: "100%", boxSizing: "border-box" },
-    btnPrimary: { padding: "8px 16px", background: "#6366f1", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 14 },
-    btnSecondary: { padding: "8px 16px", background: "#f3f4f6", color: "#333", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 14 },
-    btnDanger: { padding: "8px 12px", background: "#fee2e2", color: "#ef4444", border: "none", borderRadius: 8, cursor: "pointer", fontSize: 14 },
-    goalTop: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 },
-    goalName: { fontSize: 18, fontWeight: "bold", margin: "0 0 6px 0" },
-    badge: { display: "inline-block", padding: "2px 10px", borderRadius: 20, color: "#fff", fontSize: 12 },
-    infoBox: { display: "flex", flexDirection: "column", gap: 4 },
-    infoLabel: { fontSize: 12, color: "#888" },
-    infoValue: { fontSize: 14, fontWeight: "bold" },
-    progressBar: { height: 8, background: "#f3f4f6", borderRadius: 4, overflow: "hidden" },
-    progressFill: { height: "100%", borderRadius: 4, transition: "width 0.3s" },
-    progressText: { fontSize: 12, color: "#888", marginTop: 4, display: "block" },
-    empty: { textAlign: "center", padding: 48, color: "#888", fontSize: 16, background: "#fff", borderRadius: 12 }
-};

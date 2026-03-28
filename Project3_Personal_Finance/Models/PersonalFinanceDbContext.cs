@@ -30,7 +30,6 @@ public partial class PersonalFinanceDbContext : DbContext
     public virtual DbSet<Transaction> Transactions { get; set; }
 
     public virtual DbSet<User> Users { get; set; }
-    public virtual DbSet<DebtPayment> DebtPayments { get; set; }
 
 
     //    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)

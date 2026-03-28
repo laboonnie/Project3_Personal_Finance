@@ -1,0 +1,160 @@
+.user-table{
+
+    padding:20px;
+    background:white;
+    border-radius:10px;
+
+}
+
+.user-form{
+
+    background:#fafafa;
+
+    padding:20px;
+
+    border-radius:10px;
+
+    margin-bottom:20px;
+
+}
+
+.user-form input,
+.user-form select{
+
+    width:100%;
+
+    padding:8px;
+
+    margin-bottom:12px;
+
+}
+
+.table-header{
+
+    display:flex;
+
+    justify-content:flex-end;
+
+    margin-bottom:15px;
+
+}
+
+table{
+
+    width:100%;
+
+    border-collapse:collapse;
+
+}
+
+th{
+
+    background:#f4f6fa;
+
+    padding:12px;
+
+}
+
+td{
+
+    padding:10px;
+
+    border-bottom:1px solid #eee;
+
+}
+
+button{
+
+    margin:3px;
+
+    padding:6px 12px;
+
+    border:none;
+
+    border-radius:6px;
+
+    background:#4cafef;
+
+    color:white;
+
+    cursor:pointer;
+
+}
+
+button:hover{
+
+    opacity:0.85;
+
+}
+
+.pagination{
+
+    margin-top:20px;
+
+}
+.pagination button {
+    background: #e6f0ff;
+    color: #4cafef;
+}
+
+.pagination button:hover {
+    background: #4cafef;
+    color: white;
+}
+/* button base */
+button {
+    margin: 5px;
+    padding: 7px 16px;
+    border: none;
+    border-radius: 25px;
+    color: white;
+    cursor: pointer;
+    font-weight: 500;
+    transition: 0.3s;
+}
+
+/* create button */
+.create-btn {
+    background: linear-gradient(45deg, #4cafef, #3a8dde);
+    border-radius: 15px;
+}
+
+.create-btn:hover {
+    transform: translateY(-2px);
+}
+
+/* edit button */
+.edit-btn {
+    background: linear-gradient(45deg, #ffc107, #ffb300);
+    border-radius: 15px;
+}
+
+/* delete button */
+.delete-btn {
+    background: linear-gradient(45deg, #ff4d4f, #d9363e);
+    border-radius: 15px;
+}
+
+/* hover effect */
+button:hover {
+    opacity: 0.9;
+}
+/* spacing action buttons */
+.action-buttons {
+    display: flex;
+    gap: 10px;
+}
+/* search box */
+.search-box {
+    padding: 8px 14px;
+    border-radius: 20px;
+    border: 1px solid #ddd;
+    outline: none;
+    transition: 0.3s;
+}
+
+.search-box:focus {
+    border-color: #4cafef;
+    box-shadow: 0 0 6px rgba(76,175,239,0.3);
+}
+

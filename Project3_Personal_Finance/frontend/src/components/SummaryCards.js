@@ -22,7 +22,7 @@ export default function SummaryCards({data}){
                 <div className="card bg-primary text-white">
                     <div className="card-body">
                         <h5>Net Balence</h5>
-                        <h3>{data.balance} </h3>
+                        <h3>{data.netBalance} </h3>
                     </div>
                 </div>
             </div>

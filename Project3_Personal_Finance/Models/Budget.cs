@@ -1,5 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
+
 
 namespace Project3_Personal_Finance.Models;
 
@@ -17,7 +19,8 @@ public partial class Budget
 
     public int Year { get; set; }
 
-    public virtual FinancialJar Jar { get; set; } = null!;
-
-    public virtual User User { get; set; } = null!;
+    [JsonIgnore]
+    public virtual FinancialJar? Jar { get; set; } = null!;
+    [JsonIgnore]
+    public virtual User? User { get; set; } = null!;
 }

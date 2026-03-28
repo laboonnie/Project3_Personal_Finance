@@ -1,0 +1,288 @@
+.budget-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+    .budget-container h2 {
+        text-align: center;
+        color: #333;
+        margin-bottom: 30px;
+    }
+
+.filter-section {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    display: flex;
+    gap: 15px;
+    margin-bottom: 30px;
+}
+
+    .filter-section select {
+        padding: 10px 20px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+    }
+
+.income-summary {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+    padding: 25px;
+    border-radius: 12px;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+    .income-summary .amount {
+        font-size: 36px;
+        font-weight: bold;
+        margin: 10px 0;
+    }
+
+.btn-distribute {
+    background: white;
+    color: #28a745;
+    border: none;
+    padding: 12px 30px;
+    border-radius: 50px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.summary-cards {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+    margin-bottom: 40px;
+}
+
+.summary-card {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    padding: 25px;
+    border-radius: 12px;
+}
+
+    .summary-card .amount {
+        font-size: 28px;
+        font-weight: 700;
+    }
+
+.jars-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+}
+
+.jar-card {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    position: relative;
+}
+
+    .jar-card.over-budget {
+        border: 2px solid #f44336;
+        background: #fff5f5;
+    }
+
+.jar-header {
+    display: flex;
+    justify-content: space-between;
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 15px;
+    margin-bottom: 15px;
+}
+
+.jar-code {
+    background: #e0e0e0;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+}
+
+.amount-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px dashed #eee;
+}
+
+    .amount-row strong.negative {
+        color: #f44336;
+    }
+
+.progress-bar {
+    height: 8px;
+    background: #f0f0f0;
+    border-radius: 4px;
+    margin: 15px 0;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4facfe, #00f2fe);
+}
+
+.status-badge {
+    display: inline-block;
+    padding: 5px 15px;
+    border-radius: 20px;
+    font-size: 12px;
+}
+    /*  THÊM DẤU ĐÓNG NÀY */
+
+    .status-badge.success {
+        background: #e8f5e8;
+        color: #2e7d32;
+    }
+
+    .status-badge.danger {
+        background: #ffebee;
+        color: #c62828;
+    }
+
+.jar-actions {
+    display: flex;
+    gap: 10px;
+}
+
+    .jar-actions button {
+        flex: 1;
+        padding: 10px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+
+.btn-edit {
+    background: #4caf50;
+    color: white;
+}
+
+.btn-delete {
+    background: #f44336;
+    color: white;
+}
+
+.btn-add {
+    background: #2196f3;
+    color: white;
+    width: 100%;
+}
+
+.suggestion {
+    background: #e3f2fd;
+    color: #1565c0;
+    padding: 10px;
+    border-radius: 6px;
+    margin-top: 10px;
+}
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+    .modal-content h3 {
+        margin: 0 0 20px 0;
+    }
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+    }
+
+    .form-group input {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #e0e0e0;
+        border-radius: 8px;
+    }
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.btn-save {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    flex: 2;
+    padding: 12px;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.btn-cancel {
+    background: #f5f5f5;
+    flex: 1;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.loading {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+}
+
+@media (max-width: 768px) {
+    .filter-section {
+        flex-direction: column;
+    }
+
+        .filter-section select {
+            width: 100%;
+        }
+
+    .summary-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .jars-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .jar-actions {
+        flex-direction: column;
+    }
+
+    .form-actions {
+        flex-direction: column;
+    }
+
+    .btn-save, .btn-cancel {
+        width: 100%;
+    }
+}
