@@ -28,7 +28,8 @@ function App() {
               <Dashboard />
             </MainLayout>
           </ProtectedRoute>
-        } />
+        }
+        />
         <Route
           path="/transactions"
           element={

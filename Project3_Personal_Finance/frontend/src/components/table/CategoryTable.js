@@ -137,19 +137,24 @@ export default function CategoryTable({ categories, refresh }) {
             <div className="pagination">
 
                 {
-
-                    Array.from(
-                        {length: totalPages},
-                        (_,i)=>(
-                            <button
-                                key={i}
-                                onClick={()=>setPage(i+1)}
-                            >
-                                {i+1}
-                            </button>
-                        )
-                    )
-
+                    Array.from({ length: totalPages }, (_, i) => (
+                        <button
+                            key={i}
+                            className={`btn mx-1 ${page === i + 1 ? 'active' : ''}`}
+                            disabled={page === i + 1}
+                            onClick={() => setPage(i + 1)}
+                            style={{
+                                padding: '5px 12px',
+                                cursor: page === i + 1 ? 'not-allowed' : 'pointer',
+                                backgroundColor: page === i + 1 ? '#3182ce' : '#e2e8f0',
+                                color: page === i + 1 ? 'white' : 'black',
+                                border: 'none',
+                                borderRadius: '5px'
+                            }}
+                        >
+                            {i + 1}
+                        </button>
+                    ))
                 }
 
             </div>

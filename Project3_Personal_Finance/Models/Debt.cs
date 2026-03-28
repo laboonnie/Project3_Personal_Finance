@@ -19,7 +19,7 @@ public partial class Debt
 
     public DateOnly? DueDate { get; set; }
 
-    public string? Status { get; set; } = "active";
+    //public string? Status { get; set; } = "active";
 
     public virtual User? User { get; set; } = null!;
 }
