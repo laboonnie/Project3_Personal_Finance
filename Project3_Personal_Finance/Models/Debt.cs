@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-
-namespace Project3_Personal_Finance.Models;
+﻿namespace Project3_Personal_Finance.Models;
 
 public partial class Debt
 {
@@ -18,8 +15,6 @@ public partial class Debt
     public decimal? InterestRate { get; set; }
 
     public DateOnly? DueDate { get; set; }
-
-    //public string? Status { get; set; } = "active";
 
     public virtual User? User { get; set; } = null!;
 }

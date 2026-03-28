@@ -1,21 +1,58 @@
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 
-export default function SidebarAdmin(){
+export default function SidebarAdmin({ collapsed }) {
 
-    return(
+  const location = useLocation();
 
-        <div className="sidebar">
+  const menu = [
+    { name: "Dashboard", path: "/admin/dashboard", icon: "bi-speedometer2" },
+    { name: "Users", path: "/admin/users", icon: "bi-people" },
+    { name: "Categories", path: "/admin/categories", icon: "bi-tags" }
+  ];
 
-            <h2>Finance Admin</h2>
+  return (
+    <div
+      className="text-white p-3"
+      style={{
+        width: collapsed ? "70px" : "200px",
+        minHeight: "100vh",
+        backgroundColor: "#7c6ee6",
+        transition: "0.3s"
+      }}
+    >
 
-            <Link to="/dashboard">Dashboard</Link>
+      <h5 className="text-center mb-4">
 
-            <Link to="/users">Users</Link>
+        {collapsed ? "🛠️" : "🛠️ Admin Panel"}
 
-            <Link to="/categories">Categories</Link>
+      </h5>
 
-        </div>
+      {
+        menu.map(item => (
 
-    )
+          <Link
+            key={item.path}
+            to={item.path}
+            className={`d-flex align-items-center mb-3 text-decoration-none text-white p-2 rounded
+            ${location.pathname === item.path ? "active-menu" : ""}
+            `}
+          >
+
+            <i className={`bi ${item.icon}`} />
+
+            {
+              !collapsed &&
+              <span className="ms-2">
+                {item.name}
+              </span>
+            }
+
+          </Link>
+
+        ))
+      }
+
+    </div>
+  );
 
 }

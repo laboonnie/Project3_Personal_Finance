@@ -1,92 +1,140 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import api from '../../api/api';
-import { toast } from 'react-toastify';
-import './adminDashboard.css';
+import { useEffect, useState } from "react";
+import {
+  getAdminSummary,
+  getUsersByMonth
+} from "../../api/adminDashboardApi";
 
-const AdminDashboard = () => {
-    const [stats, setStats] = useState({
-        totalUsers: 0,
-        totalAdmins: 0,
-        totalTransactions: 0,
-        totalCategories: 0
-    });
-    const [loading, setLoading] = useState(true);
-    const navigate = useNavigate();
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  CartesianGrid,
+  ResponsiveContainer
+} from "recharts";
 
-    useEffect(() => {
-        fetchStats();
-    }, []);
+export default function AdminDashboard() {
 
-    const fetchStats = async () => {
-        try {
-            const response = await api.get('/Admin/stats');
-            setStats(response.data);
-        } catch (error) {
-            toast.error('Không thể tải dữ liệu thống kê hệ thống!');
-        } finally {
-            setLoading(false);
-        }
-    };
+  const [summary, setSummary] = useState({});
+  const [chartData, setChartData] = useState([]);
 
-    if (loading) return <div style={{ padding: '40px', textAlign: 'center' }}>⏳ Đang tải hệ thống...</div>;
+  useEffect(() => {
+    loadSummary();
+    loadChart();
+  }, []);
 
-    return (
-        <div className="admin-dashboard">
-            <div className="admin-header">
-                <h2>Tổng quan Quản trị viên</h2>
-                <p>Theo dõi tình trạng và số liệu hoạt động của toàn hệ thống.</p>
+  const loadSummary = async () => {
+
+    const res = await getAdminSummary();
+
+    setSummary(res.data);
+
+  };
+
+  const loadChart = async () => {
+
+    const res = await getUsersByMonth();
+
+    setChartData(res.data);
+
+  };
+
+
+  return (
+
+    <div className="container-fluid">
+
+      <h2 className="mb-4">Admin Dashboard</h2>
+
+      <div className="row mb-4">
+
+        <div className="col-md-4">
+
+          <div className="card text-white bg-primary shadow-sm">
+
+            <div className="card-body">
+
+              <h5 className="card-title">Total Users</h5>
+
+              <h3>{summary.totalUsers}</h3>
+
             </div>
 
-            {/* DANH SÁCH THẺ THỐNG KÊ (KPIs) */}
-            <div className="kpi-grid">
-                <div className="kpi-card">
-                    <div className="kpi-icon icon-users"><i className="bi bi-people-fill"></i></div>
-                    <div className="kpi-info">
-                        <h4>Người dùng</h4>
-                        <h2>{stats.totalUsers}</h2>
-                    </div>
-                </div>
+          </div>
 
-                <div className="kpi-card">
-                    <div className="kpi-icon icon-trans"><i className="bi bi-arrow-left-right"></i></div>
-                    <div className="kpi-info">
-                        <h4>Giao dịch</h4>
-                        <h2>{stats.totalTransactions}</h2>
-                    </div>
-                </div>
-
-                <div className="kpi-card">
-                    <div className="kpi-icon icon-cats"><i className="bi bi-tags-fill"></i></div>
-                    <div className="kpi-info">
-                        <h4>Danh mục</h4>
-                        <h2>{stats.totalCategories}</h2>
-                    </div>
-                </div>
-
-                <div className="kpi-card">
-                    <div className="kpi-icon icon-admins"><i className="bi bi-shield-lock-fill"></i></div>
-                    <div className="kpi-info">
-                        <h4>Quản trị viên</h4>
-                        <h2>{stats.totalAdmins}</h2>
-                    </div>
-                </div>
-            </div>
-
-            {/* TRUY CẬP NHANH */}
-            <div className="quick-actions">
-                <h3>Thao tác nhanh</h3>
-                <div className="action-buttons">
-                    <button className="btn-action" onClick={() => navigate('/admin/users')}>
-                        <i className="bi bi-person-lines-fill text-primary"></i> Quản lý Người dùng
-                    </button>
-                    <button className="btn-action" onClick={() => navigate('/admin/categories')}>
-                        <i className="bi bi-list-task text-warning"></i> Quản lý Danh mục gốc
-                    </button>
-                </div>
-            </div>
         </div>
-    );
-};
 
-export default AdminDashboard;
+
+        <div className="col-md-4">
+
+          <div className="card text-white bg-success shadow-sm">
+
+            <div className="card-body">
+
+              <h5 className="card-title">Total Categories</h5>
+
+              <h3>{summary.totalCategories}</h3>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <div className="col-md-4">
+
+          <div className="card text-dark bg-warning shadow-sm">
+
+            <div className="card-body">
+
+              <h5 className="card-title">Total Transactions</h5>
+
+              <h3>{summary.totalTransactions}</h3>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+      <div className="card shadow-sm">
+
+        <div className="card-body">
+
+          <h5 className="mb-3">
+
+            Users Registered Per Month
+
+          </h5>
+
+          <ResponsiveContainer width="100%" height={300}>
+
+            <BarChart data={chartData}>
+
+              <CartesianGrid strokeDasharray="3 3" />
+
+              <XAxis dataKey="month" />
+
+              <YAxis />
+
+              <Tooltip />
+
+              <Bar dataKey="total" fill="#0d6efd" />
+
+            </BarChart>
+
+          </ResponsiveContainer>
+
+        </div>
+
+      </div>
+
+
+    </div>
+
+  );
+
+}

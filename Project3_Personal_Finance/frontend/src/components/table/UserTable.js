@@ -11,7 +11,7 @@ export default function UserTable({ users, refresh }) {
     const [page, setPage] = useState(1);
     const [open, setOpen] = useState(false);
 
-    const pageSize = 5;
+    const pageSize = 4;
 
     const filteredUsers = users.filter(u =>
         u.name.toLowerCase().includes(search.toLowerCase()) ||

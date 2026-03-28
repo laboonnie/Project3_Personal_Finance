@@ -12,7 +12,7 @@ export default function CategoryTable({ categories, refresh }) {
     const [page, setPage] = useState(1);
      const [deleteId,setDeleteId] = useState(null);
 
-    const pageSize = 5;
+    const pageSize = 4;
 
     const filtered = categories.filter(c =>
         c.name.toLowerCase()
