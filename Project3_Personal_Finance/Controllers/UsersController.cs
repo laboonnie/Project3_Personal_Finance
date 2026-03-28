@@ -1,4 +1,5 @@
 ﻿using BCrypt.Net;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -78,8 +79,88 @@ namespace Project3_Personal_Finance.Controllers
             return Ok(new
             {
                 Token = token,
-                User = new { user.Id, user.Name, user.Email, user.Role }
+                User = new { user.Id, user.Name, user.Email, Role = user.Role ?? "User" }
             });
+        }
+
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto request)
+        {
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+            if (user == null)
+            {
+                return BadRequest("The email address does not exist in the system.");
+            }
+
+            string newPassword = Guid.NewGuid().ToString().Substring(0, 6).ToUpper();
+
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+            await _context.SaveChangesAsync();
+
+            // TRONG THỰC TẾ: Bạn sẽ gửi newPassword qua Email ở đây bằng thư viện MailKit.
+            // TRONG ĐỒ ÁN: Ta có thể trả thẳng về thông báo để người dùng đăng nhập tạm, sau đó họ tự đổi lại.
+            
+            return Ok(new { message = $"Your new password: {newPassword} (Login again and change password)" });
+        }
+
+        private int GetCurrentUserId()
+        {
+            var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            return int.Parse(userIdString!);
+        }
+
+        [Authorize]
+        [HttpGet("profile")]
+        public async Task<IActionResult> GetProfile()
+        {
+            var userId = GetCurrentUserId();
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null) return NotFound();
+
+            return Ok(new { user.Name, user.Email });
+        }
+
+        [Authorize]
+        [HttpPut("profile")]
+        public async Task<IActionResult> UpdateProfile(UpdateProfileDto request)
+        {
+            var userId = GetCurrentUserId();
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null) return NotFound("Cannot find user.");
+
+            // Check if the new email is already in use by another account
+            if (user.Email != request.Email && _context.Users.Any(u => u.Email == request.Email))
+            {
+                return BadRequest("Email is already in use by another account.");
+            }
+
+            user.Name = request.Name;
+            user.Email = request.Email;
+
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Update profile successfully!", name = user.Name });
+        }
+
+        // 3. ĐỔI MẬT KHẨU
+        [Authorize]
+        [HttpPut("change-password")]
+        public async Task<IActionResult> ChangePassword(ChangePasswordDto request)
+        {
+            var userId = GetCurrentUserId();
+            var user = await _context.Users.FindAsync(userId);
+            if (user == null) return NotFound("Cannot find user.");
+
+            // Verify current password
+            if (!BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
+            {
+                return BadRequest("Current password is incorrect.");
+            }
+
+            // Hash and save new password
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Change password successfully!" });
         }
         // Create JWT Token
         private string CreateToken(User user)
@@ -171,19 +252,59 @@ namespace Project3_Personal_Finance.Controllers
         }
 
         // DELETE: api/Users/5
+        [Authorize(Roles = "Admin")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteUser(int id)
         {
             var user = await _context.Users.FindAsync(id);
             if (user == null)
             {
-                return NotFound();
+                return NotFound("Không tìm thấy người dùng.");
             }
 
-            _context.Users.Remove(user);
-            await _context.SaveChangesAsync();
+            var currentUserIdString = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (currentUserIdString != null && int.Parse(currentUserIdString) == id)
+            {
+                return BadRequest("Bạn không thể tự xóa tài khoản Admin đang đăng nhập!");
+            }
 
-            return NoContent();
+            // BỌC TRONG TRY...CATCH ĐỂ BẮT LỖI RÕ RÀNG, KHÔNG BỊ TRÀN TEXT RA MÀN HÌNH REACT
+            try
+            {
+                // THÊM .ToListAsync() ĐỂ TẢI DỮ LIỆU VÀO RAM TRƯỚC KHI XÓA (Sửa lỗi RemoveRange)
+                var transactions = await _context.Transactions.Where(t => t.UserId == id).ToListAsync();
+                _context.Transactions.RemoveRange(transactions);
+
+                var goals = await _context.Goals.Where(g => g.UserId == id).ToListAsync();
+                _context.Goals.RemoveRange(goals);
+
+                var debts = await _context.Debts.Where(d => d.UserId == id).ToListAsync();
+                _context.Debts.RemoveRange(debts);
+
+                var investments = await _context.Investments.Where(i => i.UserId == id).ToListAsync();
+                _context.Investments.RemoveRange(investments);
+
+                // --- NẾU BẠN CÓ BẢNG BUDGETS HOẶC CATEGORIES, BỎ COMMENT ĐOẠN NÀY ĐỂ XÓA NỐT ---
+                var budgets = await _context.Budgets.Where(b => b.UserId == id).ToListAsync();
+                _context.Budgets.RemoveRange(budgets);
+                
+                //// Nếu bảng Categories của bạn có cột UserId (User tự tạo danh mục riêng)
+                //var categories = await _context.Categories.Where(c => c.user == id).ToListAsync();
+                //_context.Categories.RemoveRange(categories);
+
+
+                // Cuối cùng mới xóa User
+                _context.Users.Remove(user);
+                await _context.SaveChangesAsync();
+
+                return Ok(new { message = "Đã xóa thành công người dùng và toàn bộ dữ liệu liên quan!" });
+            }
+            catch (Exception ex)
+            {
+                // Nếu lỗi khóa ngoại vẫn còn, nó sẽ báo cực kỳ ngắn gọn thay vì dài dòng
+                var errorMessage = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
+                return BadRequest($"Lỗi Database khi xóa: {errorMessage}");
+            }
         }
 
         private bool UserExists(int id)

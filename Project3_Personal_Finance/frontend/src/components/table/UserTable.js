@@ -2,6 +2,7 @@ import { useState } from "react";
 import userApi from "../../api/userApi";
 import Modal from "../modal/Modal";
 import UserForm from "../form/UserForm";
+import { toast } from 'react-toastify';
 
 export default function UserTable({ users, refresh }) {
 
@@ -24,13 +25,29 @@ export default function UserTable({ users, refresh }) {
         page * pageSize
     );
 
-    const handleDelete = async (id) => {
+    const handleDelete = async (id, userName) => { 
+    
+    // 1. Tạo thông báo cảnh báo chi tiết
+    const confirmMessage = `⚠️ CẢNH BÁO NGUY HIỂM ⚠️\n\nBạn đang chuẩn bị xóa vĩnh viễn người dùng: "${userName || 'này'}".\n\nHành động này sẽ XÓA SẠCH toàn bộ dữ liệu của họ bao gồm:\n- Lịch sử giao dịch\n- Mục tiêu tài chính\n- Các khoản nợ\n- Danh mục đầu tư\n\nHành động này KHÔNG THỂ khôi phục. Bạn có CHẮC CHẮN muốn tiếp tục?`;
 
-        await userApi.deleteUser(id);
+    // 2. Hỏi người dùng có xác nhận không
+    if (window.confirm(confirmMessage)) {
+        try {
+            // 3. Gọi API xóa từ file userApi.js của bạn
+            await userApi.deleteUser(id);
 
-        refresh();
+            // 4. Thông báo thành công
+            toast.success('Đã xóa người dùng và toàn bộ dữ liệu liên quan!');
 
+            // 5. Tải lại bảng theo logic của bạn
+            refresh(); 
+
+        } catch (error) {
+            // Báo lỗi (Ví dụ: Bắt lỗi Admin không được tự xóa chính mình từ Backend trả về)
+            toast.error(error.response?.data || 'Đã có lỗi xảy ra khi xóa người dùng!');
+        }
     }
+};
 
     return (
 
@@ -104,7 +121,7 @@ export default function UserTable({ users, refresh }) {
                                 </button>
 
                                 <button className="delete-btn"
-                                    onClick={() => handleDelete(u.id)}
+                                    onClick={() => handleDelete(u.id, u.name || u.email)}
                                 >
                                     Delete
                                 </button>
@@ -122,18 +139,24 @@ export default function UserTable({ users, refresh }) {
             <div className="pagination">
 
                 {
-
                     Array.from({ length: totalPages }, (_, i) => (
-
                         <button
                             key={i}
+                            className={`btn mx-1 ${page === i + 1 ? 'active' : ''}`}
+                            disabled={page === i + 1}
                             onClick={() => setPage(i + 1)}
+                            style={{
+                                padding: '5px 12px',
+                                cursor: page === i + 1 ? 'not-allowed' : 'pointer',
+                                backgroundColor: page === i + 1 ? '#3182ce' : '#e2e8f0',
+                                color: page === i + 1 ? 'white' : 'black',
+                                border: 'none',
+                                borderRadius: '5px'
+                            }}
                         >
                             {i + 1}
                         </button>
-
                     ))
-
                 }
 
             </div>
