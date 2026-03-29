@@ -2,6 +2,7 @@ import { useState } from "react";
 import categoryApi from "../../api/categoryApi";
 import CategoryForm from "../form/CategoryForm";
 import Modal from "../modal/Modal";
+import { toast } from 'react-toastify';
 
 export default function CategoryTable({ categories, refresh }) {
 
@@ -48,14 +49,22 @@ export default function CategoryTable({ categories, refresh }) {
 
     };
 
-    const handleDelete = async (id) => {
+    const handleDelete = async () => {
+        try {
+            await categoryApi.delete(deleteId);
+            toast.success("Đã xóa danh mục thành công!");
+            
+            setDeleteId(null);
+            refresh();
 
-        await categoryApi.delete(deleteId);
-
-        setDeleteId(null);
-
-        refresh();
-
+        } catch (error) {
+            if (error.response && error.response.data) {
+                toast.error(error.response.data); 
+            } else {
+                toast.error("Đã có lỗi xảy ra khi xóa danh mục!");
+            }
+            setDeleteId(null);
+        }
     };
 
     return (

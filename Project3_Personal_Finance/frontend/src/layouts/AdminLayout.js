@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { Outlet } from "react-router-dom";
 import SidebarAdmin from "../components/layout/SidebarAdmin";
 import Header from "../components/layout/Header";
 
-export default function AdminLayout() {
+export default function AdminLayout({ children }) {
 
   const [collapsed, setCollapsed] = useState(false);
 
@@ -18,9 +17,7 @@ export default function AdminLayout() {
         <Header toggleSidebar={() => setCollapsed(!collapsed)} />
 
         <div className="p-4 bg-light min-vh-100">
-
-          <Outlet />
-
+          {children}
         </div>
 
       </div>

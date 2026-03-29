@@ -70,7 +70,7 @@ namespace Project3_Personal_Finance.Controllers
 
             if (user.IsActive == false)
             {
-                return Unauthorized("Account has been locked.");
+                return BadRequest("Tài khoản của bạn đã bị khóa. Vui lòng liên hệ Quản trị viên!");
             }
 
             // Create JWT Token
@@ -251,62 +251,84 @@ namespace Project3_Personal_Finance.Controllers
             return CreatedAtAction("GetUser", new { id = user.Id }, user);
         }
 
-        // DELETE: api/Users/5
+        //// DELETE: api/Users/5
+        //[Authorize(Roles = "Admin")]
+        //[HttpDelete("{id}")]
+        //public async Task<IActionResult> DeleteUser(int id)
+        //{
+        //    var user = await _context.Users.FindAsync(id);
+        //    if (user == null)
+        //    {
+        //        return NotFound("Không tìm thấy người dùng.");
+        //    }
+
+        //    var currentUserIdString = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        //    if (currentUserIdString != null && int.Parse(currentUserIdString) == id)
+        //    {
+        //        return BadRequest("Bạn không thể tự xóa tài khoản Admin đang đăng nhập!");
+        //    }
+
+        //    // BỌC TRONG TRY...CATCH ĐỂ BẮT LỖI RÕ RÀNG, KHÔNG BỊ TRÀN TEXT RA MÀN HÌNH REACT
+        //    try
+        //    {
+        //        // THÊM .ToListAsync() ĐỂ TẢI DỮ LIỆU VÀO RAM TRƯỚC KHI XÓA (Sửa lỗi RemoveRange)
+        //        var transactions = await _context.Transactions.Where(t => t.UserId == id).ToListAsync();
+        //        _context.Transactions.RemoveRange(transactions);
+
+        //        var goals = await _context.Goals.Where(g => g.UserId == id).ToListAsync();
+        //        _context.Goals.RemoveRange(goals);
+
+        //        var debts = await _context.Debts.Where(d => d.UserId == id).ToListAsync();
+        //        _context.Debts.RemoveRange(debts);
+
+        //        var investments = await _context.Investments.Where(i => i.UserId == id).ToListAsync();
+        //        _context.Investments.RemoveRange(investments);
+
+        //        // --- NẾU BẠN CÓ BẢNG BUDGETS HOẶC CATEGORIES, BỎ COMMENT ĐOẠN NÀY ĐỂ XÓA NỐT ---
+        //        var budgets = await _context.Budgets.Where(b => b.UserId == id).ToListAsync();
+        //        _context.Budgets.RemoveRange(budgets);
+
+        //        //// Nếu bảng Categories của bạn có cột UserId (User tự tạo danh mục riêng)
+        //        //var categories = await _context.Categories.Where(c => c.user == id).ToListAsync();
+        //        //_context.Categories.RemoveRange(categories);
+
+
+        //        // Cuối cùng mới xóa User
+        //        _context.Users.Remove(user);
+        //        await _context.SaveChangesAsync();
+
+        //        return Ok(new { message = "Đã xóa thành công người dùng và toàn bộ dữ liệu liên quan!" });
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        // Nếu lỗi khóa ngoại vẫn còn, nó sẽ báo cực kỳ ngắn gọn thay vì dài dòng
+        //        var errorMessage = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
+        //        return BadRequest($"Lỗi Database khi xóa: {errorMessage}");
+        //    }
+        //}
+
+        // PUT: api/Users/5/toggle-active
         [Authorize(Roles = "Admin")]
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteUser(int id)
+        [HttpPut("{id}/toggle-active")]
+        public async Task<IActionResult> ToggleActive(int id)
         {
             var user = await _context.Users.FindAsync(id);
-            if (user == null)
+            if (user == null) return NotFound("Không tìm thấy người dùng.");
+
+            // Bảo vệ kép: Chặn luôn ở Backend không cho phép khóa tài khoản Admin
+            if (user.Role == "Admin")
             {
-                return NotFound("Không tìm thấy người dùng.");
+                return BadRequest("Không thể thao tác lên tài khoản Quản trị viên!");
             }
 
-            var currentUserIdString = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-            if (currentUserIdString != null && int.Parse(currentUserIdString) == id)
-            {
-                return BadRequest("Bạn không thể tự xóa tài khoản Admin đang đăng nhập!");
-            }
+            // Đảo ngược trạng thái hiện tại (Đang Yes thành No, đang No thành Yes)
+            user.IsActive = !user.IsActive;
 
-            // BỌC TRONG TRY...CATCH ĐỂ BẮT LỖI RÕ RÀNG, KHÔNG BỊ TRÀN TEXT RA MÀN HÌNH REACT
-            try
-            {
-                // THÊM .ToListAsync() ĐỂ TẢI DỮ LIỆU VÀO RAM TRƯỚC KHI XÓA (Sửa lỗi RemoveRange)
-                var transactions = await _context.Transactions.Where(t => t.UserId == id).ToListAsync();
-                _context.Transactions.RemoveRange(transactions);
+            await _context.SaveChangesAsync();
 
-                var goals = await _context.Goals.Where(g => g.UserId == id).ToListAsync();
-                _context.Goals.RemoveRange(goals);
-
-                var debts = await _context.Debts.Where(d => d.UserId == id).ToListAsync();
-                _context.Debts.RemoveRange(debts);
-
-                var investments = await _context.Investments.Where(i => i.UserId == id).ToListAsync();
-                _context.Investments.RemoveRange(investments);
-
-                // --- NẾU BẠN CÓ BẢNG BUDGETS HOẶC CATEGORIES, BỎ COMMENT ĐOẠN NÀY ĐỂ XÓA NỐT ---
-                var budgets = await _context.Budgets.Where(b => b.UserId == id).ToListAsync();
-                _context.Budgets.RemoveRange(budgets);
-                
-                //// Nếu bảng Categories của bạn có cột UserId (User tự tạo danh mục riêng)
-                //var categories = await _context.Categories.Where(c => c.user == id).ToListAsync();
-                //_context.Categories.RemoveRange(categories);
-
-
-                // Cuối cùng mới xóa User
-                _context.Users.Remove(user);
-                await _context.SaveChangesAsync();
-
-                return Ok(new { message = "Đã xóa thành công người dùng và toàn bộ dữ liệu liên quan!" });
-            }
-            catch (Exception ex)
-            {
-                // Nếu lỗi khóa ngoại vẫn còn, nó sẽ báo cực kỳ ngắn gọn thay vì dài dòng
-                var errorMessage = ex.InnerException != null ? ex.InnerException.Message : ex.Message;
-                return BadRequest($"Lỗi Database khi xóa: {errorMessage}");
-            }
+            string actionMessage = user.IsActive == true ? "Đã MỞ KHÓA tài khoản thành công!" : "Đã KHÓA tài khoản thành công!";
+            return Ok(new { message = actionMessage, isActive = user.IsActive });
         }
-
         private bool UserExists(int id)
         {
             return _context.Users.Any(e => e.Id == id);

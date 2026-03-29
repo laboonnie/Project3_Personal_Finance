@@ -7,7 +7,8 @@ export default function SidebarAdmin({ collapsed }) {
   const menu = [
     { name: "Dashboard", path: "/admin/dashboard", icon: "bi-speedometer2" },
     { name: "Users", path: "/admin/users", icon: "bi-people" },
-    { name: "Categories", path: "/admin/categories", icon: "bi-tags" }
+    { name: "Categories", path: "/admin/categories", icon: "bi-tags" },
+    { name: "Admins", path: "/admin/admins", icon: "bi-person-badge" }, 
   ];
 
   return (
@@ -22,9 +23,7 @@ export default function SidebarAdmin({ collapsed }) {
     >
 
       <h5 className="text-center mb-4">
-
         {collapsed ? "🛠️" : "🛠️ Admin Panel"}
-
       </h5>
 
       {
@@ -34,7 +33,7 @@ export default function SidebarAdmin({ collapsed }) {
             key={item.path}
             to={item.path}
             className={`d-flex align-items-center mb-3 text-decoration-none text-white p-2 rounded
-            ${location.pathname === item.path ? "active-menu" : ""}
+              ${location.pathname.startsWith(item.path) ? "active-menu" : ""}
             `}
           >
 
@@ -54,5 +53,4 @@ export default function SidebarAdmin({ collapsed }) {
 
     </div>
   );
-
 }

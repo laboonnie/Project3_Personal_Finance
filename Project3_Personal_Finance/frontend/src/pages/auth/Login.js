@@ -31,7 +31,13 @@ const Login = () => {
                 navigate('/dashboard');
             }
         } catch (error) {
-            toast.error(error.response?.data || 'Wrong email or password!');
+            // toast.error(error.response?.data || 'Wrong email or password!');
+            if (error.response && error.response.data) {
+                // Hiển thị chính xác dòng chữ "Tài khoản của bạn đã bị khóa..." từ Backend
+                toast.error(error.response.data); 
+            } else {
+                toast.error("Không thể kết nối đến máy chủ!");
+            }
         }
     };
 
