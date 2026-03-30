@@ -234,28 +234,28 @@ namespace Project3_Personal_Finance.Controllers
         }
 
         // ==================== DELETE ====================
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteTransaction(int id)
-        {
-            try
-            {
-                var userId = GetCurrentUserId();
+        //[HttpDelete("{id}")]
+        //public async Task<IActionResult> DeleteTransaction(int id)
+        //{
+        //    try
+        //    {
+        //        var userId = GetCurrentUserId();
 
-                var transaction = await _context.Transactions
-                    .FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
+        //        var transaction = await _context.Transactions
+        //            .FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
 
-                if (transaction == null)
-                    return NotFound(new { message = "Transaction not found" });
+        //        if (transaction == null)
+        //            return NotFound(new { message = "Transaction not found" });
 
-                _context.Transactions.Remove(transaction);
-                await _context.SaveChangesAsync();
+        //        _context.Transactions.Remove(transaction);
+        //        await _context.SaveChangesAsync();
 
-                return Ok(new { message = "Delete successfully" });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new { message = ex.Message });
-            }
-        }
+        //        return Ok(new { message = "Delete successfully" });
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return StatusCode(500, new { message = ex.Message });
+        //    }
+        //}
     }
 }

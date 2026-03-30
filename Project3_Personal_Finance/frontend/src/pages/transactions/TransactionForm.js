@@ -3,7 +3,7 @@ import { transactionApi } from '../../api/transactionApi';
 import categoryApi from '../../api/categoryApi';
 import './Transactions.css';
 
-const TransactionForm = ({ onSuccess, onCancel }) => {  // ✅ BỎ userId
+const TransactionForm = ({ onSuccess, onCancel }) => {  
     const [formData, setFormData] = useState({
         categoryId: '',
         amount: '',
@@ -73,7 +73,7 @@ const TransactionForm = ({ onSuccess, onCancel }) => {  // ✅ BỎ userId
                 note: formData.note || ''
             };
 
-            await transactionApi.create(dataToSend);  // ✅ KHÔNG userId
+            await transactionApi.create(dataToSend);  
 
             if (onSuccess) {
                 onSuccess();

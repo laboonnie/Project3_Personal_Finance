@@ -10,7 +10,7 @@ const Transactions = () => {
     return (
         <div className="transactions-page">
             <div className="page-container">
-                <TransactionList key={refresh} />  {/* ✅ KHÔNG userId */}
+                <TransactionList key={refresh} />  
             </div>
         </div>
     );

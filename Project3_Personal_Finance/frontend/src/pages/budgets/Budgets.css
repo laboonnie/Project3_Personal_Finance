@@ -286,3 +286,44 @@
         width: 100%;
     }
 }
+.jar-transaction-history {
+
+    margin-top: 15px;
+    padding: 12px;
+
+    background: #f8f9fc;
+
+    border-radius: 8px;
+}
+
+.jar-transaction-row {
+
+    display: flex;
+    justify-content: space-between;
+
+    padding: 6px 0;
+
+    border-bottom: 1px solid #eee;
+}
+
+.jar-transaction-row:last-child {
+
+    border-bottom: none;
+}
+.history-row {
+
+    display: flex;
+
+    justify-content: space-between;
+
+    padding: 10px 0;
+
+    border-bottom: 1px solid #eee;
+
+}
+
+.history-row:last-child {
+
+    border-bottom: none;
+
+}

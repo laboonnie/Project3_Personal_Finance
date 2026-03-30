@@ -4,7 +4,7 @@ import { transactionApi } from '../../api/transactionApi';
 import BudgetForm from './BudgetForm';
 import './Budgets.css';
 
-const BudgetList = () => {  // ✅ BỎ userId props
+const BudgetList = () => {
     const [budgets, setBudgets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [month, setMonth] = useState(new Date().getMonth() + 1);
@@ -17,6 +17,9 @@ const BudgetList = () => {  // ✅ BỎ userId props
     const [totalIncome, setTotalIncome] = useState(0);
     const [showDistribute, setShowDistribute] = useState(false);
     const [refresh, setRefresh] = useState(false);
+    const [showJarHistory, setShowJarHistory] = useState(false);
+    const [selectedJarTransactions, setSelectedJarTransactions] = useState([]);
+    const [selectedJarName, setSelectedJarName] = useState("");
 
     const loadAvailableYears = useCallback(async () => {
         try {
@@ -98,7 +101,6 @@ const BudgetList = () => {  // ✅ BỎ userId props
         refreshData();
         setShowDistribute(false);
     };
-
     const handleMonthChange = (e) => setMonth(parseInt(e.target.value));
     const handleYearChange = (e) => setYear(parseInt(e.target.value));
     const handleEditBudget = (jar) => {
@@ -106,22 +108,44 @@ const BudgetList = () => {  // ✅ BỎ userId props
         setShowForm(true);
     };
 
-    const handleDeleteBudget = async (jarId) => {
-        if (window.confirm('Are you sure you want to delete this budget?')) {
-            try {
-                const budget = budgets.find(b => b.jarId === jarId);
-                if (budget?.id) {
-                    await budgetApi.delete(budget.id);
-                    loadData();
-                }
-            } catch (error) {
-                console.error('Error deleting budget:', error);
-            }
-        }
-    };
+    // const handleDeleteBudget = async (jarId) => {
+    //     if (window.confirm('Are you sure you want to delete this budget?')) {
+    //         try {
+    //             const budget = budgets.find(b => b.jarId === jarId);
+    //             if (budget?.id) {
+    //                 await budgetApi.delete(budget.id);
+    //                 loadData();
+    //             }
+    //         } catch (error) {
+    //             console.error('Error deleting budget:', error);
+    //         }
+    //     }
+    // };
 
     const formatMoney = (amount) => {
         return new Intl.NumberFormat('vi-VN').format(amount) + 'đ';
+    };
+
+    const handleSeeDetails = async (jar) => {
+
+        try {
+
+            const response = await transactionApi.getMonthlyTransactions(month, year);
+
+            const filtered = response.data.filter(t => t.jarId === jar.jarId);
+
+            setSelectedJarTransactions(filtered);
+
+            setSelectedJarName(jar.jarName);
+
+            setShowJarHistory(true);
+
+        } catch (error) {
+
+            console.error("Error loading jar history:", error);
+
+        }
+
     };
 
     if (loading) return <div className="loading">Loading data...</div>;
@@ -249,12 +273,12 @@ const BudgetList = () => {  // ✅ BỎ userId props
                         <div className="jar-actions">
                             {jar.budgetAmount > 0 ? (
                                 <>
-                                    <button className="btn-edit" onClick={() => handleEditBudget(jar)}>
-                                        Edit
+                                    <button className="btn-edit" onClick={() => handleSeeDetails(jar)}>
+                                        See details...
                                     </button>
-                                    <button className="btn-delete" onClick={() => handleDeleteBudget(jar.jarId)}>
+                                    {/* <button className="btn-delete" onClick={() => handleDeleteBudget(jar.jarId)}>
                                         Delete
-                                    </button>
+                                    </button> */}
                                 </>
                             ) : (
                                 <button className="btn-add" onClick={() => handleEditBudget(jar)}>
@@ -284,6 +308,74 @@ const BudgetList = () => {  // ✅ BỎ userId props
                     }}
                 />
             )}
+            {
+                showJarHistory && (
+
+                    <div className="modal-overlay" onClick={() => setShowJarHistory(false)}>
+
+                        <div
+                            className="modal-content"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+
+                            <h3>📜 Transaction History - {selectedJarName}</h3>
+
+                            {
+                                selectedJarTransactions.length === 0 ? (
+
+                                    <p>No transactions found</p>
+
+                                ) : (
+
+                                    selectedJarTransactions.map(t => (
+
+                                        <div
+                                            key={t.id}
+                                            className="history-row"
+                                        >
+
+                                            <span>
+                                                {new Date(t.transactionDate)
+                                                    .toLocaleDateString("vi-VN")}
+                                            </span>
+
+                                            <span>
+                                                {t.categoryName}
+                                            </span>
+
+                                            <strong>
+
+                                                {t.type === "Income" ? "+" : "-"}
+
+                                                {new Intl.NumberFormat("vi-VN")
+                                                    .format(t.amount)}đ
+
+                                            </strong>
+
+                                        </div>
+
+                                    ))
+
+                                )
+                            }
+
+                            <div className="form-actions">
+
+                                <button
+                                    className="btn-cancel"
+                                    onClick={() => setShowJarHistory(false)}
+                                >
+                                    Close
+                                </button>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                )
+            }
         </div>
     );
 };

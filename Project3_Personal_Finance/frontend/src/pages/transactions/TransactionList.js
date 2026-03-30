@@ -3,7 +3,7 @@ import { transactionApi } from '../../api/transactionApi';
 import TransactionForm from './TransactionForm';
 import './Transactions.css';
 
-const TransactionList = () => {  // ✅ BỎ userId props
+const TransactionList = () => { 
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
@@ -57,17 +57,17 @@ const TransactionList = () => {  // ✅ BỎ userId props
         }
     }, [loadTransactions, filter.year, refresh]);
 
-    const handleDelete = async (id) => {
-        if (window.confirm('Are you sure you want to delete this transaction?')) {
-            try {
-                await transactionApi.delete(id);
-                setRefresh(prev => !prev);
-                loadAvailableYears();
-            } catch (err) {
-                alert('Delete failed');
-            }
-        }
-    };
+    // const handleDelete = async (id) => {
+    //     if (window.confirm('Are you sure you want to delete this transaction?')) {
+    //         try {
+    //             await transactionApi.delete(id);
+    //             setRefresh(prev => !prev);
+    //             loadAvailableYears();
+    //         } catch (err) {
+    //             alert('Delete failed');
+    //         }
+    //     }
+    // };
 
     const handleSuccess = () => {
         setShowForm(false);
@@ -212,13 +212,13 @@ const TransactionList = () => {  // ✅ BỎ userId props
                                         <span className={transaction.type.toLowerCase()}>
                                             {transaction.type === 'Income' ? '+' : '-'} {formatMoney(transaction.amount)}
                                         </span>
-                                        <button
+                                        {/* <button
                                             onClick={() => handleDelete(transaction.id)}
                                             className="btn-delete"
                                             title="Delete"
                                         >
                                             🗑️
-                                        </button>
+                                        </button> */}
                                     </div>
                                 </div>
                             ))}
