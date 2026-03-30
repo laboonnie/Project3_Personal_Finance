@@ -7,7 +7,8 @@ export default function SidebarAdmin({ collapsed }) {
   const menu = [
     { name: "Dashboard", path: "/admin/dashboard", icon: "bi-speedometer2" },
     { name: "Users", path: "/admin/users", icon: "bi-people" },
-    { name: "Categories", path: "/admin/categories", icon: "bi-tags" }
+    { name: "Categories", path: "/admin/categories", icon: "bi-tags" },
+    { name: "Admins", path: "/admin/admins", icon: "bi-person-badge" }, 
   ];
 
   return (

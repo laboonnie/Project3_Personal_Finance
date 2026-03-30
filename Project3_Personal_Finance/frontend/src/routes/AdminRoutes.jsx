@@ -3,6 +3,7 @@ import UsersPage from "../pages/admin/UsersPage";
 import CategoriesPage from "../pages/admin/CategoriesPage";
 import AdminDashboard from "../pages/admin/AdminDashboard";
 import AdminLayout from "../layouts/AdminLayout";
+import AdminsPage from "../pages/admin/AdminPage";
 
 export default function AdminRoutes() {
 
@@ -21,6 +22,15 @@ export default function AdminRoutes() {
         element={
           <AdminLayout>
             <AdminDashboard />
+          </AdminLayout>
+        }
+      />
+
+      <Route
+        path="admins"
+        element={
+          <AdminLayout>
+            <AdminsPage />
           </AdminLayout>
         }
       />

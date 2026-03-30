@@ -16,88 +16,88 @@ import MainLayout from "./layouts/MainLayout";
 import "./App.css";
 
 function App() {
-  return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+    return (
+        <BrowserRouter>
+            <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
 
-        <Route path="/dashboard" element={
-          <ProtectedRoute>
-            <MainLayout>
-              <Dashboard />
-            </MainLayout>
-          </ProtectedRoute>
-        } />
-        <Route
-          path="/transactions"
-          element={
-            <ProtectedRoute>
-              <MainLayout>
-                <Transactions />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/budgets"
-          element={
-            <ProtectedRoute>
-              <MainLayout>
-                <Budgets />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/goals"
-          element={
-            <ProtectedRoute>
-              <MainLayout>
-                <Goals />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/debts"
-          element={
-            <ProtectedRoute>
-              <MainLayout>
-                <Debts />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/investments"
-          element={
-            <ProtectedRoute>
-              <MainLayout>
-                <Investments />
-              </MainLayout>
-            </ProtectedRoute>
-          }
-        />
+                <Route path="/dashboard" element={
+                    <ProtectedRoute>
+                        <MainLayout>
+                            <Dashboard />
+                        </MainLayout>
+                    </ProtectedRoute>
+                } />
+                <Route
+                    path="/transactions"
+                    element={
+                        <ProtectedRoute>
+                            <MainLayout>
+                                <Transactions />
+                            </MainLayout>
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/budgets"
+                    element={
+                        <ProtectedRoute>
+                            <MainLayout>
+                                <Budgets />
+                            </MainLayout>
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/goals"
+                    element={
+                        <ProtectedRoute>
+                            <MainLayout>
+                                <Goals />
+                            </MainLayout>
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/debts"
+                    element={
+                        <ProtectedRoute>
+                            <MainLayout>
+                                <Debts />
+                            </MainLayout>
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/investments"
+                    element={
+                        <ProtectedRoute>
+                            <MainLayout>
+                                <Investments />
+                            </MainLayout>
+                        </ProtectedRoute>
+                    }
+                />
 
-        {/* redirect trang chủ */}
-        {/* <Route path="/" element={<Navigate to="/admin/users" />} /> */}
+                {/* redirect trang ch? */}
+                {/* <Route path="/" element={<Navigate to="/admin/users" />} /> */}
 
-        {/* admin routes */}
-        <Route
-          path="/admin/*"
-          element={
-            <ProtectedRoute>
-              <AdminRoutes />
-            </ProtectedRoute>
-          }
-        />
+                {/* admin routes */}
+                <Route
+                    path="/admin/*"
+                    element={
+                        <ProtectedRoute>
+                            <AdminRoutes />
+                        </ProtectedRoute>
+                    }
+                />
 
-        {/* Default route */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
-      <ToastContainer position="top-right" autoClose={3000} />
-    </BrowserRouter>
-  );
+                {/* Default route */}
+                <Route path="*" element={<Navigate to="/login" replace />} />
+            </Routes>
+            <ToastContainer position="top-right" autoClose={3000} />
+        </BrowserRouter>
+    );
 }
 export default App;

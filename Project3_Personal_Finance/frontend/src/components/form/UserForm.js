@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import userApi from "../../api/userApi";
 
-export default function UserForm({ editUser, refresh }) {
+export default function UserForm({ editUser, refresh, defaultRole = "User" }) {
     const [form, setForm] = useState({
         name: "",
         email: "",
-        role: "User",
+        role: defaultRole,
         isActives: true
     });
     useEffect(() => {
@@ -14,6 +14,7 @@ export default function UserForm({ editUser, refresh }) {
         }
     }, [editUser]);
     const handleChange = (e) => {
+        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
         setForm({
             ...form,
             [e.target.name]: e.target.value
@@ -31,7 +32,7 @@ export default function UserForm({ editUser, refresh }) {
         setForm({
             name: "",
             email: "",
-            role: "User",
+            role: defaultRole,
             isActives: true
         })
     }

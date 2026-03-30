@@ -95,19 +95,40 @@ namespace Project3_Personal_Finance.Controllers
             return Ok(existing);
         }
 
-        // ================= DELETE =================
+        // DELETE: api/Categories/5
+        [Authorize(Roles = "Admin")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteCategory(int id)
         {
             var category = await _context.Categories.FindAsync(id);
-
             if (category == null)
-                return NotFound();
+            {
+                return NotFound("Không tìm thấy danh mục.");
+            }
 
-            _context.Categories.Remove(category);
-            await _context.SaveChangesAsync();
+            // =================================================================
+            // LOGIC KIỂM TRA: Đã có giao dịch nào sử dụng danh mục này chưa?
+            // =================================================================
+            bool hasTransactions = await _context.Transactions.AnyAsync(t => t.CategoryId == id);
 
-            return Ok("Xóa thành công");
+            if (hasTransactions)
+            {
+                // Nếu đã có giao dịch, TRẢ VỀ LỖI NGAY LẬP TỨC
+                return BadRequest("Không thể xóa! Danh mục này đã phát sinh giao dịch. Để bảo toàn lịch sử thu chi, bạn không được phép xóa.");
+            }
+
+            try
+            {
+                // Nếu chưa có giao dịch nào (hasTransactions == false), cho phép xóa bình thường
+                _context.Categories.Remove(category);
+                await _context.SaveChangesAsync();
+
+                return Ok(new { message = "Đã xóa danh mục thành công!" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Lỗi hệ thống khi xóa danh mục: {ex.Message}");
+            }
         }
     }
 }
