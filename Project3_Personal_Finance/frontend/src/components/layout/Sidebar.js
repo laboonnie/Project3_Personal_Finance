@@ -1,4 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
+import AiAdvisor from "../AiAdvisor/AiAdvisor";
 
 export default function Sidebar({ collapsed }) {
 
@@ -55,6 +56,7 @@ export default function Sidebar({ collapsed }) {
         ))
       }
 
+      <AiAdvisor />
     </div>
   );
 }

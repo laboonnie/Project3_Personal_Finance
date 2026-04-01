@@ -48,6 +48,34 @@ namespace Project3_Personal_Finance.Controllers
             return Ok(new { balance = balance });
         }
 
+        // API MỚI: LẤY THÔNG TIN VÀ SỐ DƯ HŨ FINANCIAL FREEDOM (FFA)
+        [HttpGet("ffa-balance")]
+        public async Task<IActionResult> GetFFABalance()
+        {
+            var userId = GetCurrentUserId();
+
+            // 1. Tìm đích danh hũ FFA trong bảng FinancialJars bạn vừa tạo
+            var ffaJar = await _context.FinancialJars.FirstOrDefaultAsync(j => j.JarCode == "FFA");
+            if (ffaJar == null) return BadRequest("Không tìm thấy hũ FFA trong CSDL!");
+
+            // 2. Tính số dư của hũ này dựa trên bảng Transactions
+            var txs = await _context.Transactions
+                .Where(t => t.UserId == userId && t.CategoryId == ffaJar.Id)
+                .ToListAsync();
+
+            var income = txs.Where(t => t.Type == "Income").Sum(t => t.Amount);
+            var expense = txs.Where(t => t.Type == "Expense").Sum(t => t.Amount);
+            var balance = income - expense;
+
+            // 3. Trả về cả ID hũ và Số dư cho React
+            return Ok(new
+            {
+                id = ffaJar.Id,
+                name = ffaJar.JarName,
+                balance = balance
+            });
+        }
+
         // 2. LẤY DANH SÁCH & MÔ PHỎNG GIÁ
         [HttpGet]
         public async Task<IActionResult> GetInvestments()
