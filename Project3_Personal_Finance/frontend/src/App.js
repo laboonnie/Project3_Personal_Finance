@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import AdminRoutes from "./routes/AdminRoutes";
 import Login from "./pages/auth/Login";
 import Register from "./pages/auth/Register";
+import Introduce from "./pages/auth/introduce";
 import Dashboard from "./pages/dashboard/Dashboard";
 import ProtectedRoute from "./routes/ProtectedRoute";
 import { ToastContainer } from 'react-toastify';
@@ -19,6 +20,7 @@ function App() {
     return (
         <BrowserRouter>
             <Routes>
+                <Route path="/" element={<Introduce />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
 
@@ -94,7 +96,7 @@ function App() {
                 />
 
                 {/* Default route */}
-                <Route path="*" element={<Navigate to="/login" replace />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
             <ToastContainer position="top-right" autoClose={3000} />
         </BrowserRouter>
