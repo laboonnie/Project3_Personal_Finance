@@ -115,7 +115,7 @@ button {
 
 /* create button */
 .create-btn {
-    background: linear-gradient(45deg, #4cafef, #3a8dde);
+    background: linear-gradient(45deg, #ea52f2, #d141eb);
     border-radius: 15px;
 }
 
@@ -157,4 +157,41 @@ button:hover {
     border-color: #4cafef;
     box-shadow: 0 0 6px rgba(76,175,239,0.3);
 }
+.user-form {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
 
+/* group active + save cùng hàng */
+.user-form .form-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+/* select Active nhỏ lại */
+.user-form select {
+    width: auto;
+    min-width: 120px;
+}
+
+/* save button nằm ngang hàng */
+.user-form button {
+    white-space: nowrap;
+}
+.form-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+}
+
+/* checkbox + text nằm ngang */
+.active-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-weight: 500;
+}

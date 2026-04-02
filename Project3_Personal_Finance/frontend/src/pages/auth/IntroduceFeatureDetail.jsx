@@ -1,11 +1,14 @@
 import React from "react";
 import "./IntroduceFeatureDetail.css";
+import debtImg from "../../images/debts.png";
+import budgetImg from "../../images/budgets.png";
+import analyticsImg from "../../images/dashboard.png";
 
 export const FEATURES = {
   "1": {
     title: "Debt Management",
     imageAlt: "Debt Management feature illustration",
-    imageUrl: null,
+    imageUrl:debtImg,
     description: "Track and manage all your debts in one place. Monitor outstanding balances, interest rates, and due dates with real-time updates.",
     keyFeatures: [
       "Add multiple debts from different sources",
@@ -18,7 +21,7 @@ export const FEATURES = {
   "2": {
     title: "Budget Tracking",
     imageAlt: "Budget Tracking feature illustration",
-    imageUrl: null,
+    imageUrl: budgetImg,
     description: "Set spending limits and monitor your budget across different categories. Get alerts when you're approaching or exceeding your limits.",
     keyFeatures: [
       "Create custom budget categories",
@@ -31,7 +34,7 @@ export const FEATURES = {
   "3": {
     title: "Expense Analytics",
     imageAlt: "Expense Analytics feature illustration",
-    imageUrl: null,
+    imageUrl: analyticsImg,
     description: "Gain deep insights into your spending habits with advanced analytics and detailed reports. Understand where your money goes.",
     keyFeatures: [
       "View detailed spending breakdown by category",

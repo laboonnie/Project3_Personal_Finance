@@ -36,116 +36,37 @@ export default function CategoryForm({ category, close, refresh }) {
         refresh();
         close();
     }
-        return(
+    return (
 
         <div className="category-form">
 
             <h3>
-
                 {
-
-                    form.id
-
-                    ? "Update Category"
-
-                    : "Create Category"
-
+                    form.id ? "Update Category" : "Create Category"
                 }
-
             </h3>
 
 
             <form onSubmit={handleSubmit}>
-
-
                 <label>Name</label>
-
-                <input
-
-                    name="name"
-
-                    value={form.name}
-
-                    onChange={handleChange}
-
-                />
-
-
+                <input name="name" value={form.name} onChange={handleChange} />
                 <label>Type</label>
-
-                <select
-
-                    name="type"
-
-                    value={form.type}
-
-                    onChange={handleChange}
-
-                >
-
+                <select name="type" value={form.type} onChange={handleChange}>
                     <option>Expense</option>
-
                     <option>Income</option>
-
                 </select>
-
-
                 <label>Jar</label>
+                <select name="jarId" value={form.jarId} onChange={handleChange}>
+                    <option value="">Select Jar</option>
 
-                <select
-
-                    name="jarId"
-
-                    value={form.jarId}
-
-                    onChange={handleChange}
-
-                >
-
-                    <option value="">
-
-                        Select Jar
-
-                    </option>
-
-                    {
-
-                        jars.map(j=>(
-                            <option
-                                key={j.id}
-                                value={j.id}
-                            >
-                                {j.jarName}
-                            </option>
-                        ))
-
+                    {jars.map(j => (
+                        <option key={j.id} value={j.id} >{j.jarName}</option>
+                    ))
                     }
-
                 </select>
-
-
-                <button type="submit">
-
-                    Save
-
-                </button>
-
-
-                <button
-
-                    type="button"
-
-                    onClick={close}
-
-                >
-
-                    Cancel
-
-                </button>
-
-
+                <button type="submit" className="create-btn"> Save </button>
+                <button className="delete-btn" type="button" onClick={close} > Cancel</button>
             </form>
-
         </div>
 
     );

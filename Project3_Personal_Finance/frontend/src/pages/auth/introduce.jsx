@@ -2,6 +2,10 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { IntroduceFeaturePanel } from "./IntroduceFeatureDetail";
 import "./introduce.css";
+import debtIntro from "../../images/DebtIntro.jpg";
+import budgetIntro from "../../images/BudgetIntro.jpg";
+import analytics from "../../images/analysis.jpg";
+import poster from "../../images/poster.jpg";
 
 export default function Introduce() {
   const navigate = useNavigate();
@@ -54,7 +58,7 @@ export default function Introduce() {
               </div>
             </div>
             <div className="intro-hero-right">
-              <div className="skel skel-image" />
+              <img src={poster} alt="Wallet app preview" className="skel skel-image" />
             </div>
           </div>
         </div>
@@ -69,7 +73,7 @@ export default function Introduce() {
               onClick={() => setFeatureId("1")}
             >
               <div style={{ fontSize: "15px", fontWeight: 600, color: "var(--intro-text)" }}>Debt Management</div>
-              <div className="skel skel-image sm" />
+              <img src={debtIntro} alt="Wallet app preview" className="skel skel-image sm" />
             </button>
             <button
               type="button"
@@ -77,7 +81,7 @@ export default function Introduce() {
               onClick={() => setFeatureId("2")}
             >
               <div style={{ fontSize: "15px", fontWeight: 600, color: "var(--intro-text)" }}>Budget Tracking</div>
-              <div className="skel skel-image sm" />
+              <img src={budgetIntro} alt="Wallet app preview" className="skel skel-image sm" />
             </button>
             <button
               type="button"
@@ -85,7 +89,7 @@ export default function Introduce() {
               onClick={() => setFeatureId("3")}
             >
               <div style={{ fontSize: "15px", fontWeight: 600, color: "var(--intro-text)" }}>Expense Analytics</div>
-              <div className="skel skel-image sm" />
+              <img src={analytics} alt="Wallet app preview" className="skel skel-image sm" />
             </button>
           </div>
         </div>

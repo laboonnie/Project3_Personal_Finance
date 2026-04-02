@@ -1,47 +1,56 @@
-.modal-overlay{
-
-    position:fixed;
-
-    top:0;
-
-    left:0;
-
-    width:100%;
-
-    height:100%;
-
-    background:rgba(0,0,0,0.4);
-
-    display:flex;
-
-    justify-content:center;
-
-    align-items:center;
-
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.55); /* nền tối mềm */
+    backdrop-filter: blur(3px); /* blur nền phía sau */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 999;
 }
 
-.modal-box{
-
-    background:white;
-
-    padding:30px;
-
-    border-radius:10px;
-
-    width:400px;
-
+/* modal box */
+.modal-box {
+    background: white;
+    padding: 28px 32px;
+    border-radius: 16px;
+    width: 420px;
+    max-width: 90%;
+    box-shadow:
+        0 10px 25px rgba(0,0,0,0.15),
+        0 4px 10px rgba(0,0,0,0.05);
+    animation: modalFadeIn 0.25s ease;
+    position: relative;
 }
 
-.close-btn{
+/* animation xuất hiện */
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
 
-    float:right;
+/* nút close */
+.close-btn {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    border: none;
+    background: #ef4444;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: 0.25s;
+}
 
-    border:none;
-
-    background:red;
-
-    color:white;
-
-    padding:5px 10px;
-
+.close-btn:hover {
+    background: #dc2626;
+    transform: scale(1.05);
 }

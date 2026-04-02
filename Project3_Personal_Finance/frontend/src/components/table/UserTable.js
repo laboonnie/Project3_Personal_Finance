@@ -14,7 +14,7 @@ export default function UserTable({ users, refresh, showRole = "User" }) {
     const pageSize = 4;
 
     const filteredUsers = users.filter(u =>
-        u.role === showRole && 
+        u.role === showRole &&
         (u.name.toLowerCase().includes(search.toLowerCase()) ||
             u.email.toLowerCase().includes(search.toLowerCase()))
     );
@@ -34,7 +34,7 @@ export default function UserTable({ users, refresh, showRole = "User" }) {
             try {
                 const res = await userApi.toggleActive(id);
                 toast.success(res.data.message);
-                refresh(); 
+                refresh();
             } catch (error) {
                 toast.error(error.response?.data || 'Đã có lỗi xảy ra!');
             }
@@ -127,8 +127,8 @@ export default function UserTable({ users, refresh, showRole = "User" }) {
                                 </button>
 
                                 {showRole === "User" && (
-                                    <button 
-                                        className="delete-btn" 
+                                    <button
+                                        className="delete-btn"
                                         style={{ backgroundColor: u.isActive ? '#f59e0b' : '#10b981', color: 'white' }}
                                         onClick={() => handleToggleActive(u.id, u.isActive, u.name || u.email)}
                                     >
@@ -136,16 +136,6 @@ export default function UserTable({ users, refresh, showRole = "User" }) {
                                     </button>
                                 )}
 
-                                <button 
-                                    className="delete-btn" 
-                                    style={{ 
-                                        backgroundColor: u.isActive ? '#f59e0b' : '#10b981', 
-                                        color: 'white'
-                                    }}
-                                    onClick={() => handleToggleActive(u.id, u.isActive, u.name || u.email)}
-                                >
-                                    {u.isActive ? 'Lock' : 'Unlock'}
-                                </button>
 
                             </td>
 

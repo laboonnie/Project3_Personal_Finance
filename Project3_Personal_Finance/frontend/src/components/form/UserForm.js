@@ -6,7 +6,7 @@ export default function UserForm({ editUser, refresh, defaultRole = "User" }) {
         name: "",
         email: "",
         role: defaultRole,
-        isActives: true
+        isActive: true
     });
     useEffect(() => {
         if (editUser) {
@@ -14,12 +14,16 @@ export default function UserForm({ editUser, refresh, defaultRole = "User" }) {
         }
     }, [editUser]);
     const handleChange = (e) => {
-        const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+        const value =
+            e.target.type === "checkbox"
+                ? e.target.checked
+                : e.target.value;
+
         setForm({
             ...form,
-            [e.target.name]: e.target.value
-        })
-    }
+            [e.target.name]: value
+        });
+    };
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (form.id) {
@@ -84,27 +88,21 @@ export default function UserForm({ editUser, refresh, defaultRole = "User" }) {
             </select>
 
 
-            <label>
+            <div className="form-row">
+                <label className="active-checkbox">
+                    <input
+                        type="checkbox"
+                        name="isActive"
+                        checked={form.isActive}
+                        onChange={handleChange}
+                    />
+                    Active
+                </label>
 
-                <input
-                    type="checkbox"
-                    name="isActive"
-                    checked={form.isActive}
-                    onChange={handleChange}
-                />
-
-                Active
-
-            </label>
-
-
-            <button type="submit">
-
-                {form.id
-                    ? "Update"
-                    : "Add"}
-
-            </button>
+                <button type="submit" className="create-btn">
+                    {form.id ? "Update" : "Add"}
+                </button>
+            </div>
 
         </form>
 

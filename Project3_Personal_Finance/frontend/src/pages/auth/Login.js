@@ -102,7 +102,7 @@ const Login = () => {
                             </div>
                             
                             <div className='forgot-password' style={{ cursor: 'pointer', textAlign: 'right', marginTop: '10px' }} onClick={() => setIsForgotMode(true)}>
-                                Quên mật khẩu? <span style={{ color: '#3182ce', fontWeight: 'bold' }}>Bấm vào đây!</span>
+                                Forgot Password? <span style={{ color: '#3182ce', fontWeight: 'bold' }}>Click here!</span>
                             </div>
                             
                             <div className='submit-container'>
