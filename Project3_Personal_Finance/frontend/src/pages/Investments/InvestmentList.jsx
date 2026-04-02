@@ -21,10 +21,9 @@ const InvestmentList = () => {
             const res = await api.get('/Investments');
             setInvestments(res.data);
             
-            // Tìm ID của hũ FFA để dùng khi rút tiền
-            const catRes = await categoryApi.getAll();
-            const ffaCat = catRes.data.find(c => c.name.toLowerCase().includes('freedom') || c.name.toLowerCase().includes('tự do'));
-            if (ffaCat) setFfaCategoryId(ffaCat.id);
+            // Gọi API mới để lấy đúng ID của hũ FFA phục vụ cho nút Rút tiền
+            const ffaRes = await api.get('/Investments/ffa-balance');
+            setFfaCategoryId(ffaRes.data.id);
 
         } catch (error) { toast.error('Lỗi tải dữ liệu'); } 
         finally { setLoading(false); }

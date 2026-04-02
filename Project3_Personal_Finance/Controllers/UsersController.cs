@@ -13,6 +13,8 @@ using System.Linq;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
+using System.Net;
+using System.Net.Mail;
 
 namespace Project3_Personal_Finance.Controllers
 {
@@ -86,21 +88,59 @@ namespace Project3_Personal_Finance.Controllers
         [HttpPost("forgot-password")]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto request)
         {
+            // 1. Kiểm tra xem email có tồn tại không
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
             if (user == null)
             {
-                return BadRequest("The email address does not exist in the system.");
+                return BadRequest("Email không tồn tại trong hệ thống!");
             }
 
-            string newPassword = Guid.NewGuid().ToString().Substring(0, 6).ToUpper();
+            // 2. Tạo một mật khẩu tạm thời (8 ký tự ngẫu nhiên)
+            string tempPassword = Guid.NewGuid().ToString().Substring(0, 8);
 
-            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+            // 3. Mã hóa mật khẩu tạm thời và lưu vào Database
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(tempPassword);
             await _context.SaveChangesAsync();
 
-            // TRONG THỰC TẾ: Bạn sẽ gửi newPassword qua Email ở đây bằng thư viện MailKit.
-            // TRONG ĐỒ ÁN: Ta có thể trả thẳng về thông báo để người dùng đăng nhập tạm, sau đó họ tự đổi lại.
-            
-            return Ok(new { message = $"Your new password: {newPassword} (Login again and change password)" });
+            // 4. CẤU HÌNH GỬI EMAIL QUA GMAIL
+            try
+            {
+                // THAY THẾ BẰNG EMAIL VÀ MẬT KHẨU ỨNG DỤNG CỦA BẠN
+                string fromEmail = "viethoangb05@gmail.com";
+                string appPassword = "madf pndo rpzb odjj";
+
+                var smtpClient = new SmtpClient("smtp.gmail.com")
+                {
+                    Port = 587,
+                    Credentials = new NetworkCredential(fromEmail, appPassword),
+                    EnableSsl = true,
+                };
+
+                var mailMessage = new MailMessage
+                {
+                    From = new MailAddress(fromEmail, "Finance App Support"),
+                    Subject = "Khôi phục mật khẩu - Personal Finance ",
+                    Body = $@"
+                        <h3>Xin chào {user.Name},</h3>
+                        <p>Hệ thống đã nhận được yêu cầu khôi phục mật khẩu của bạn.</p>
+                        <p>Mật khẩu đăng nhập tạm thời của bạn là: <b style='color: red; font-size: 18px;'>{tempPassword}</b></p>
+                        <p>Vui lòng đăng nhập và đổi lại mật khẩu của riêng bạn ngay lập tức để đảm bảo an toàn.</p>
+                        <br/>
+                        <p>Trân trọng,<br/>Đội ngũ Personal Finance</p>",
+                    IsBodyHtml = true, // Cho phép dùng thẻ HTML trong nội dung
+                };
+
+                mailMessage.To.Add(user.Email);
+
+                // Thực hiện gửi
+                await smtpClient.SendMailAsync(mailMessage);
+
+                return Ok(new { message = "Mật khẩu mới đã được gửi. Vui lòng kiểm tra hộp thư (hoặc mục Spam) của bạn!" });
+            }
+            catch (Exception ex)
+            {
+                return BadRequest($"Lỗi khi gửi email: {ex.Message}");
+            }
         }
 
         private int GetCurrentUserId()

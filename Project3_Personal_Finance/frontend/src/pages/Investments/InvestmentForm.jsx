@@ -15,31 +15,18 @@ const InvestmentForm = ({ onSuccess, onCancel }) => {
     useEffect(() => {
         const fetchFFABalance = async () => {
             try {
-                // 1. Tải danh sách Categories để tìm ID của hũ "Financial Freedom"
-                const catRes = await categoryApi.getAll();
-                // Tìm Category có tên chứa "Freedom" hoặc "Tự do"
-                const ffaCat = catRes.data.find(c => 
-                    c.name.toLowerCase().includes('freedom') || 
-                    c.name.toLowerCase().includes('tự do')
-                );
-
-                if (ffaCat) {
-                    // Khóa cứng ID hũ vào Form
-                    setFormData(prev => ({ ...prev, categoryId: ffaCat.id }));
-                    
-                    // Lấy số dư hiện tại của hũ này
-                    const balRes = await api.get(`/Investments/category-balance/${ffaCat.id}`);
-                    setFfaBalance(balRes.data.balance);
-                } else {
-                    toast.error("Không tìm thấy danh mục 'Financial Freedom' trong hệ thống!");
-                }
+                // Gọi thẳng API mới tạo, không cần load toàn bộ Categories nữa
+                const res = await api.get('/Investments/ffa-balance');
+                setFfaBalance(res.data.balance);
+                
+                // Khóa cứng ID của hũ FFA vào form để lúc Mua sẽ trừ đúng hũ này
+                setFormData(prev => ({ ...prev, categoryId: res.data.id }));
             } catch (error) {
-                console.error("Lỗi tải thông tin hũ FFA", error);
+                toast.error("Lỗi tải thông tin hũ FFA từ hệ thống!");
             }
         };
         fetchFFABalance();
     }, []);
-
     const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
     const formatMoney = (amount) => new Intl.NumberFormat('vi-VN').format(amount) + 'đ';
