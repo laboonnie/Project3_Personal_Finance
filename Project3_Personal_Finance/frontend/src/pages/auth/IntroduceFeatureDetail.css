@@ -1,0 +1,123 @@
+.intro-feature-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1050;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+}
+
+.intro-feature-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 18, 35, 0.45);
+  backdrop-filter: blur(4px);
+}
+
+.intro-feature-modal-panel {
+  position: relative;
+  z-index: 1;
+  width: min(720px, 100%);
+  max-height: min(92vh, 900px);
+  overflow: auto;
+  border-radius: 16px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
+}
+
+.intro-feature-modal-panel .ifd-frame {
+  box-shadow: none;
+}
+
+.ifd-frame {
+  max-width: 720px;
+  margin: 0 auto;
+  background: #fff;
+  border-radius: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 10px 32px rgba(20, 24, 40, 0.1);
+  overflow: hidden;
+}
+
+.ifd-top {
+  padding: 16px 18px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  background: #f3f4fb;
+}
+
+.ifd-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  color: #4c00b4;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0 0 10px;
+  font-size: 15px;
+}
+
+.ifd-back:hover {
+  text-decoration: underline;
+}
+
+.ifd-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  color: #3c009d;
+}
+
+.ifd-image-wrap {
+  padding: 18px;
+}
+
+.ifd-image-placeholder {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #e9ebf3, #f4f5fa);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.ifd-image {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  object-fit: cover;
+  aspect-ratio: 16 / 9;
+}
+
+.ifd-body {
+  padding: 0 18px 22px;
+}
+
+.ifd-line {
+  height: 12px;
+  border-radius: 8px;
+  background: #e7e9f2;
+  margin-bottom: 10px;
+}
+
+.ifd-line.w-90 {
+  width: 90%;
+}
+.ifd-line.w-75 {
+  width: 75%;
+}
+.ifd-line.w-60 {
+  width: 60%;
+}
+
+.ifd-hint {
+  margin: 18px 0 0;
+  font-size: 13px;
+  color: #676767;
+}
+
+.ifd-hint code {
+  font-size: 12px;
+  color: #4c00b4;
+}
