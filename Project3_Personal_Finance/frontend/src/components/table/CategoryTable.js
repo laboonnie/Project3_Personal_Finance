@@ -52,7 +52,7 @@ export default function CategoryTable({ categories, refresh }) {
     const handleDelete = async () => {
         try {
             await categoryApi.delete(deleteId);
-            toast.success("Đã xóa danh mục thành công!");
+            toast.success("The category has been deleted successfully!");
             
             setDeleteId(null);
             refresh();
@@ -61,7 +61,7 @@ export default function CategoryTable({ categories, refresh }) {
             if (error.response && error.response.data) {
                 toast.error(error.response.data); 
             } else {
-                toast.error("Đã có lỗi xảy ra khi xóa danh mục!");
+                toast.error("An error occurred while deleting the category!");
             }
             setDeleteId(null);
         }

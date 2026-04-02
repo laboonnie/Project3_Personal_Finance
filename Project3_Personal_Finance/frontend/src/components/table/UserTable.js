@@ -27,8 +27,8 @@ export default function UserTable({ users, refresh, showRole = "User" }) {
     );
 
     const handleToggleActive = async (id, currentStatus, userName) => {
-        const actionText = currentStatus ? 'KHÓA' : 'MỞ KHÓA';
-        const confirmMessage = `Bạn có chắc chắn muốn ${actionText} quyền truy cập của người dùng "${userName || 'này'}"?`;
+        const actionText = currentStatus ? 'Lock' : 'Unlock';
+        const confirmMessage = `Are you sure you want to ${actionText} access for user "${userName || 'this user'}"?`;
 
         if (window.confirm(confirmMessage)) {
             try {
@@ -36,22 +36,22 @@ export default function UserTable({ users, refresh, showRole = "User" }) {
                 toast.success(res.data.message);
                 refresh();
             } catch (error) {
-                toast.error(error.response?.data || 'Đã có lỗi xảy ra!');
+                toast.error(error.response?.data || 'An error occurred!');
             }
         }
     };
 
     // const handleDelete = async (id, userName) => {
-    //     const confirmMessage = `⚠️ CẢNH BÁO NGUY HIỂM ⚠️\n\nBạn đang chuẩn bị xóa vĩnh viễn người dùng: "${userName || 'này'}".\n\nHành động này sẽ XÓA SẠCH toàn bộ dữ liệu của họ bao gồm:\n- Lịch sử giao dịch\n- Mục tiêu tài chính\n- Các khoản nợ\n- Danh mục đầu tư\n\nHành động này KHÔNG THỂ khôi phục. Bạn có CHẮC CHẮN muốn tiếp tục?`;
+    //     const confirmMessage = `⚠️ CẢNH BÁO NGUY HIỂM ⚠️\n\nYou are about to permanently delete the user: "${userName || 'this user'}".\n\nThis action will DELETE ALL data associated with them, including:\n- Transaction history\n- Financial goals\n- Debts\n- Investment portfolio\n\nThis action cannot be undone. Are you sure you want to proceed?`;
 
     //     if (window.confirm(confirmMessage)) {
     //         try {
     //             await userApi.deleteUser(id);
-    //             toast.success('Đã xóa người dùng và toàn bộ dữ liệu liên quan!');
+    //             toast.success('The user and all associated data have been deleted successfully!');
     //             refresh();
 
     //         } catch (error) {
-    //             toast.error(error.response?.data || 'Đã có lỗi xảy ra khi xóa người dùng!');
+    //             toast.error(error.response?.data || 'An error occurred while deleting the user!');
     //         }
     //     }
     // };

@@ -6,19 +6,18 @@ using System.Security.Claims;
 
 namespace Project3_Personal_Finance.Controllers
 {
-    // DTO nhận dữ liệu từ Frontend
     public class CreateInvestmentDto
     {
         public string AssetName { get; set; }
         public string AssetType { get; set; }
         public decimal AmountInvested { get; set; }
         public DateTime InvestDate { get; set; }
-        public int CategoryId { get; set; } // Bắt buộc phải có để tạo Transaction trừ tiền
+        public int CategoryId { get; set; } 
     }
 
     public class SellInvestmentDto
     {
-        public int CategoryId { get; set; } // Hũ nhận tiền về
+        public int CategoryId { get; set; } 
     }
 
     [Authorize]
@@ -49,29 +48,35 @@ namespace Project3_Personal_Finance.Controllers
         }
 
         // API MỚI: LẤY THÔNG TIN VÀ SỐ DƯ HŨ FINANCIAL FREEDOM (FFA)
+        // API MỚI: LẤY THÔNG TIN VÀ SỐ DƯ CHO DANH MỤC ĐẦU TƯ
         [HttpGet("ffa-balance")]
         public async Task<IActionResult> GetFFABalance()
         {
             var userId = GetCurrentUserId();
 
-            // 1. Tìm đích danh hũ FFA trong bảng FinancialJars bạn vừa tạo
-            var ffaJar = await _context.FinancialJars.FirstOrDefaultAsync(j => j.JarCode == "FFA");
-            if (ffaJar == null) return BadRequest("Không tìm thấy hũ FFA trong CSDL!");
+            // 1. SỬA LỖI Ở ĐÂY: Chỉ tìm theo Tên, bỏ điều kiện UserId đi vì bảng Category không có cột này
+            var invCategory = await _context.Categories
+                .FirstOrDefaultAsync(c => c.Name.Contains("Đầu tư") || c.Name.Contains("Invest"));
 
-            // 2. Tính số dư của hũ này dựa trên bảng Transactions
+            if (invCategory == null)
+            {
+                return BadRequest("The system has not found a category to record. Please go to the Categories page and create a category with the word 'Investment' (e.g., Stock Investment)!");
+            }
+
+            // 2. Tính số dư (Lưu ý: Bảng Transactions thì VẪN PHẢI lọc theo UserId vì giao dịch là của cá nhân)
             var txs = await _context.Transactions
-                .Where(t => t.UserId == userId && t.CategoryId == ffaJar.Id)
+                .Where(t => t.UserId == userId && t.CategoryId == invCategory.Id)
                 .ToListAsync();
 
             var income = txs.Where(t => t.Type == "Income").Sum(t => t.Amount);
             var expense = txs.Where(t => t.Type == "Expense").Sum(t => t.Amount);
             var balance = income - expense;
 
-            // 3. Trả về cả ID hũ và Số dư cho React
+            // 3. Trả về đúng ID của bảng Categories
             return Ok(new
             {
-                id = ffaJar.Id,
-                name = ffaJar.JarName,
+                id = invCategory.Id,
+                name = invCategory.Name,
                 balance = balance
             });
         }
@@ -101,7 +106,7 @@ namespace Project3_Personal_Finance.Controllers
 
             // Kiểm tra số dư trước khi mua
             var currentBalance = await GetCategoryBalance(userId, request.CategoryId);
-            if (currentBalance < request.AmountInvested) return BadRequest("Hũ này không đủ tiền để đầu tư!");
+            if (currentBalance < request.AmountInvested) return BadRequest("This jar doesn't have enough money to invest!");
 
             using var transaction = await _context.Database.BeginTransactionAsync();
             try
@@ -124,7 +129,7 @@ namespace Project3_Personal_Finance.Controllers
                     Amount = request.AmountInvested,
                     Type = "Expense",
                     TransactionDate = request.InvestDate,
-                    Note = $"Mua tài sản đầu tư: {request.AssetName}"
+                    Note = $"Purchase investment assets: {request.AssetName}"
                 };
                 _context.Transactions.Add(moneyTransaction);
                 await _context.SaveChangesAsync();
@@ -135,11 +140,11 @@ namespace Project3_Personal_Finance.Controllers
                 // Trả về dữ liệu để hiển thị Popup
                 return Ok(new
                 {
-                    message = "Đầu tư thành công",
+                    message = "Successful investment",
                     transactionDetails = new { amount = request.AmountInvested, remainingBalance = newBalance, time = DateTime.Now.ToString("HH:mm:ss dd/MM/yyyy") }
                 });
             }
-            catch (Exception ex) { await transaction.RollbackAsync(); return BadRequest($"Lỗi hệ thống: {ex.Message}"); }
+            catch (Exception ex) { await transaction.RollbackAsync(); return BadRequest($"Error system: {ex.Message}"); }
         }
 
         // ... previous code unchanged ...
@@ -149,14 +154,14 @@ namespace Project3_Personal_Finance.Controllers
         {
             var userId = GetCurrentUserId();
             var investment = await _context.Investments.FirstOrDefaultAsync(i => i.Id == id && i.UserId == userId);
-            if (investment == null) return NotFound("Không tìm thấy khoản đầu tư.");
+            if (investment == null) return NotFound("No investment opportunities found.");
 
             int seed = investment.Id + DateTime.Today.DayOfYear + DateTime.Today.Year;
             Random rnd = new Random(seed);
             double fluctuation = (rnd.NextDouble() * 0.5) - 0.15;
 
             if (!investment.AmountInvested.HasValue)
-                return BadRequest("Giá trị đầu tư không hợp lệ.");
+                return BadRequest("The investment value is invalid.");
 
             decimal amountInvested = investment.AmountInvested.Value;
             decimal currentValue = amountInvested + (amountInvested * (decimal)fluctuation);
@@ -171,7 +176,7 @@ namespace Project3_Personal_Finance.Controllers
                     Amount = currentValue,
                     Type = "Income",
                     TransactionDate = DateTime.Now,
-                    Note = $"Bán tài sản: {investment.AssetName} (Lãi/Lỗ: {currentValue - amountInvested:N0}đ)"
+                    Note = $"Selling assets: {investment.AssetName} (Profit/Loss: {currentValue - amountInvested:N0}đ)"
                 };
                 _context.Transactions.Add(moneyTransaction);
                 _context.Investments.Remove(investment); // Xóa khỏi danh mục đang nắm giữ
@@ -182,11 +187,11 @@ namespace Project3_Personal_Finance.Controllers
                 var newBalance = await GetCategoryBalance(userId, request.CategoryId);
                 return Ok(new
                 {
-                    message = "Rút tiền thành công",
+                    message = "Withdrawal successful",
                     transactionDetails = new { amount = currentValue, remainingBalance = newBalance, time = DateTime.Now.ToString("HH:mm:ss dd/MM/yyyy") }
                 });
             }
-            catch (Exception ex) { await transaction.RollbackAsync(); return BadRequest($"Lỗi hệ thống: {ex.Message}"); }
+            catch (Exception ex) { await transaction.RollbackAsync(); return BadRequest($"Error system: {ex.Message}"); }
         }
     }
 }

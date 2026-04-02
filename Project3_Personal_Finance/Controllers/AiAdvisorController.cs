@@ -16,7 +16,6 @@ namespace Project3_Personal_Finance.Controllers
         private readonly PersonalFinanceDbContext _context;
         private readonly HttpClient _httpClient;
 
-        // THAY BẰNG API KEY BẠN VỪA LẤY Ở GOOGLE AI STUDIO
         private readonly string _geminiApiKey = "AIzaSyANUi59zLElySpgfBDYsk1Wu08PuFkZ4L4";
 
         public AiAdvisorController(PersonalFinanceDbContext context)
@@ -41,7 +40,7 @@ namespace Project3_Personal_Finance.Controllers
 
             if (!transactions.Any())
             {
-                return Ok(new { advice = "Bạn chưa có giao dịch nào trong tháng này để AI phân tích. Hãy ghi chép thêm nhé!" });
+                return Ok(new { advice = "You haven't had any transactions this month for the AI ​​to analyze. Please add more to your records!" });
             }
 
             // 2. Tính toán tổng quan
@@ -77,7 +76,7 @@ namespace Project3_Personal_Finance.Controllers
                 // NẾU GOOGLE BÁO LỖI (400, 403, 404...), IN THẲNG LỖI CỦA GOOGLE RA MÀN HÌNH
                 if (!response.IsSuccessStatusCode)
                 {
-                    return BadRequest($"Google từ chối ({response.StatusCode}): {responseString}");
+                    return BadRequest($"Google refused ({response.StatusCode}): {responseString}");
                 }
 
                 // Nếu thành công thì đọc kết quả bình thường
@@ -92,7 +91,7 @@ namespace Project3_Personal_Finance.Controllers
             }
             catch (Exception ex)
             {
-                return BadRequest($"Lỗi khi kết nối với AI: {ex.Message}");
+                return BadRequest($"Error when connecting to AI: {ex.Message}");
             }
         }
     }

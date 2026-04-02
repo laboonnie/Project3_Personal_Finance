@@ -303,34 +303,39 @@
     letter-spacing: -0.5px;
 }
 
-/* Nút Chốt & Rút Tiền hiện đại */
-.btn-withdraw {
+/* Nút Chốt & Rút Tiền trong thẻ Đầu Tư */
+.btn-withdraw-investment {
     width: 100%;
-    margin-top: 15px;
-    padding: 12px;
-    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-    color: white;
+    background-color: #7c6ee6; /* Tím pastel đồng bộ với Sidebar */
+    color: #ffffff;
     border: none;
-    border-radius: 12px;
+    border-radius: 8px; /* Bo góc hiện đại */
+    padding: 12px 0;
+    margin-top: 10px;
+    font-size: 14.5px;
     font-weight: 600;
-    font-size: 14px;
-    cursor: pointer;
-    transition: all 0.3s ease;
+    font-family: inherit;
     display: flex;
-    justify-content: center;
     align-items: center;
-    gap: 8px;
-    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    justify-content: center;
+    gap: 8px; /* Khoảng cách giữa icon và chữ */
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(124, 110, 230, 0.25); /* Đổ bóng màu tím nhẹ */
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
 }
 
-.btn-withdraw:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.45);
-    background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+/* Hiệu ứng khi đưa chuột vào */
+.btn-withdraw-investment:hover {
+    background-color: #6356c9; /* Đổi sang màu tím đậm hơn một chút */
+    box-shadow: 0 6px 15px rgba(124, 110, 230, 0.4); /* Bóng tỏa rộng hơn */
+    transform: translateY(-2px); /* Hiệu ứng nhấc nút lên mượt mà */
+    color: #ffffff;
 }
 
-.btn-withdraw:active {
-    transform: translateY(0);
+/* Hiệu ứng khi bấm click chuột xuống */
+.btn-withdraw-investment:active {
+    transform: translateY(1px); /* Nút lún xuống khi bấm */
+    box-shadow: 0 2px 5px rgba(124, 110, 230, 0.3);
 }
 
 @media (max-width: 768px) {
