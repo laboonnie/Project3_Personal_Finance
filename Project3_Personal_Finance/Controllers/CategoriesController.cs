@@ -9,7 +9,7 @@ using Project3_Personal_Finance.Models;
 
 namespace Project3_Personal_Finance.Controllers
 {
-    [Authorize] // Bắt buộc đăng nhập
+    [Authorize] 
     [Route("api/[controller]")]
     [ApiController]
     public class CategoriesController : ControllerBase

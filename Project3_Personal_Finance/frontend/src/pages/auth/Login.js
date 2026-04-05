@@ -34,7 +34,7 @@ const Login = () => {
             if (error.response && error.response.data) {
                 toast.error(error.response.data); 
             } else {
-                toast.error("Không thể kết nối đến máy chủ!");
+                toast.error("An error occurred during login! Please try again.");
             }
         }
     };
@@ -44,11 +44,11 @@ const Login = () => {
         setIsLoading(true);
         try {
             const response = await api.post('/Users/forgot-password', { email: forgotEmail });
-            toast.success(response.data.message || 'Mật khẩu mới đã được gửi vào email của bạn!');
+            toast.success(response.data.message || 'A new password has been sent to your email!');
             setIsForgotMode(false); 
             setForgotEmail('');
         } catch (error) {
-            toast.error(error.response?.data || 'Email không tồn tại trong hệ thống!');
+            toast.error(error.response?.data || 'The email does not exist in the system!');
         } finally {
             setIsLoading(false);
         }
@@ -65,7 +65,7 @@ const Login = () => {
                             <div className='text'>Forgot Password</div>
                             <div className='underline'></div>
                             <p className="text-center text-muted mt-3 mb-1" style={{ fontSize: '14px' }}>
-                                Nhập email của bạn để nhận mật khẩu khôi phục
+                                Enter your email to receive a password reset link. If the email exists in our system, you will receive instructions to reset your password.
                             </p>
                             <div className='inputs mt-0'>
                                 <div className='input'>
@@ -77,11 +77,11 @@ const Login = () => {
                             <div className='submit-container mt-4'>
                                 {/* Sửa lại CSS để button ăn khớp với class submit */}
                                 <button type="submit" className='submit' disabled={isLoading} style={{ border: 'none', fontFamily: 'inherit' }}>
-                                    {isLoading ? 'Đang gửi...' : 'Gửi Yêu Cầu'}
+                                    {isLoading ? 'Sending...' : 'Send Request'}
                                 </button>
                                 
                                 <div className='submit gray' onClick={() => setIsForgotMode(false)} style={{ cursor: 'pointer' }}>
-                                    Trở lại Đăng nhập
+                                    Back to Login
                                 </div>
                             </div>   
                         </form>

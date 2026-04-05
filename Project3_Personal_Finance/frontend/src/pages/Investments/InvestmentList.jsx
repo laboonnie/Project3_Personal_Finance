@@ -25,7 +25,7 @@ const InvestmentList = () => {
             const ffaRes = await api.get('/Investments/ffa-balance');
             setFfaCategoryId(ffaRes.data.id);
 
-        } catch (error) { toast.error('Lỗi tải dữ liệu'); } 
+        } catch (error) { toast.error('Error fetching investment data'); } 
         finally { setLoading(false); }
     }, []);
 
@@ -34,7 +34,7 @@ const InvestmentList = () => {
     const formatMoney = (amount) => new Intl.NumberFormat('vi-VN').format(amount) + 'đ';
 
     const handleSell = async () => {
-        if (!ffaCategoryId) { toast.error('Không tìm thấy hũ FFA để nhận tiền!'); return; }
+        if (!ffaCategoryId) { toast.error('Error: FFA jar not found!'); return; }
 
         try {
             const res = await api.post(`/Investments/${sellTarget.id}/sell`, { categoryId: ffaCategoryId });
@@ -42,32 +42,32 @@ const InvestmentList = () => {
             const details = res.data.transactionDetails;
             toast.success(
                 <div>
-                    <strong>💰 Chốt lời/Cắt lỗ thành công!</strong><br/>
-                    Đã hoàn về hũ FFA: <b>{formatMoney(details.amount)}</b><br/>
-                    Số dư hũ FFA: <b style={{color: '#059669'}}>{formatMoney(details.remainingBalance)}</b><br/>
-                    <small style={{color: '#666'}}>Lúc: {details.time}</small>
+                    <strong>💰 Profit/Loss cut successful!</strong><br/>
+                    Amount returned to FFA jar: <b>{formatMoney(details.amount)}</b><br/>
+                    Remaining FFA balance: <b style={{color: '#059669'}}>{formatMoney(details.remainingBalance)}</b><br/>
+                    <small style={{color: '#666'}}>Time: {details.time}</small>
                 </div>, 
                 { autoClose: 6000 }
             );
 
             setSellTarget(null);
             setRefresh(prev => !prev);
-        } catch (err) { toast.error(err.response?.data || 'Lỗi khi rút tiền!'); }
+        } catch (err) { toast.error(err.response?.data || 'Error occurred while withdrawing funds!'); }
     };
 
-    if (loading) return <div style={{ textAlign: 'center', padding: '40px' }}>⏳ Đang tải dữ liệu thị trường...</div>;
+    if (loading) return <div style={{ textAlign: 'center', padding: '40px' }}>⏳ Loading market data...</div>;
 
     return (
         <div className="investment-list-container">
             <div className="investment-header">
-                <h3>Thị Trường & Danh Mục Đầu Tư</h3>
-                <button className="btn-new-investment" onClick={() => setShowForm(true)}>➕ Mua Tài Sản</button>
+                <h3>Market & Portfolio</h3>
+                <button className="btn-new-investment" onClick={() => setShowForm(true)}>➕ Buy Investment Asset</button>
             </div>
 
             {showForm && <InvestmentForm onSuccess={() => { setShowForm(false); setRefresh(prev => !prev); }} onCancel={() => setShowForm(false)} />}
 
             {investments.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>📭 Bạn chưa có tài sản đầu tư nào.</div>
+                <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>📭 You have no investment assets yet.</div>
             ) : (
                 <div className="investment-grid">
                     {investments.map(inv => {
@@ -80,26 +80,25 @@ const InvestmentList = () => {
                                 <div className="card-header">
                                     <div>
                                         <h4>{inv.assetName}</h4>
-                                        <div className="date-text">Ngày mua: {new Date(inv.investDate).toLocaleDateString('vi-VN')}</div>
+                                        <div className="date-text">Purchase Date: {new Date(inv.investDate).toLocaleDateString('vi-VN')}</div>
                                     </div>
                                     <span className="type-badge">{inv.assetType}</span>
                                 </div>
 
                                 <div className="card-body">
-                                    <div className="value-row"><span>Vốn đầu tư:</span><strong>{formatMoney(inv.amountInvested)}</strong></div>
+                                    <div className="value-row"><span>Investment Amount:</span><strong>{formatMoney(inv.amountInvested)}</strong></div>
                                     <div className="value-row" style={{ marginTop: '5px' }}>
-                                        <span>Giá trị hôm nay:</span>
+                                        <span>Current Value:</span>
                                         <strong style={{ fontSize: '18px', color: isProfit ? '#059669' : '#dc2626' }}>{formatMoney(inv.currentValue)}</strong>
                                     </div>
 
                                     <div className={`profit-box ${isProfit ? 'profit' : 'loss'}`}>
-                                        <span>{isProfit ? '▲ Đang Lãi' : '▼ Đang Lỗ'} ({isProfit ? '+' : ''}{roi}%)</span>
+                                        <span>{isProfit ? '▲ Profit' : '▼ Loss'} ({isProfit ? '+' : ''}{roi}%)</span>
                                         <span>{formatMoney(Math.abs(profit))}</span>
                                     </div>
                                     
-                                    {/* NÚT RÚT TIỀN ĐÃ ĐƯỢC CSS LẠI */}
-                                    <button onClick={() => setSellTarget(inv)} className="btn-withdraw">
-                                        <i className="bi bi-cash-stack"></i> Chốt & Rút Tiền
+                                    <button onClick={() => setSellTarget(inv)} className="btn-withdraw-investment">
+                                        <i className="bi bi-cash-coin"></i> Close & Withdraw Money
                                     </button>
                                 </div>
                             </div>
@@ -108,26 +107,25 @@ const InvestmentList = () => {
                 </div>
             )}
 
-            {/* POPUP XÁC NHẬN RÚT TIỀN (ĐÃ LƯỢC BỎ CHỌN HŨ) */}
             {sellTarget && (
                 <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1050 }}>
                     <div className="modal-dialog modal-dialog-centered">
                         <div className="modal-content border-0 shadow-lg">
                             <div className="modal-header bg-light">
-                                <h5 className="modal-title fw-bold">Xác nhận Rút tiền</h5>
+                                <h5 className="modal-title fw-bold">Confirm Withdrawal</h5>
                                 <button type="button" className="btn-close" onClick={() => setSellTarget(null)}></button>
                             </div>
                             <div className="modal-body p-4 text-center">
                                 <div style={{ fontSize: '40px', marginBottom: '10px' }}>🏦</div>
                                 <p style={{ fontSize: '16px' }}>
-                                    Bạn đang rút tài sản <b>{sellTarget.assetName}</b>.
+                                    You are withdrawing the asset <b>{sellTarget.assetName}</b>.
                                 </p>
                                 <div style={{ background: '#f8fafc', padding: '15px', borderRadius: '10px', marginBottom: '20px' }}>
-                                    Số tiền <b style={{ color: '#059669', fontSize: '18px' }}>{formatMoney(sellTarget.currentValue)}</b> sẽ được chuyển thẳng về hũ <br/><b>Financial Freedom (Tự do tài chính)</b>.
+                                    The amount <b style={{ color: '#059669', fontSize: '18px' }}>{formatMoney(sellTarget.currentValue)}</b> will be transferred directly to the jar <br/><b>Financial Freedom (Financial Freedom)</b>.
                                 </div>
                                 <div className="d-flex gap-2">
-                                    <button className="btn btn-primary w-100 fw-bold py-2" onClick={handleSell}>Xác nhận Rút về Hũ</button>
-                                    <button className="btn btn-secondary w-100 py-2" onClick={() => setSellTarget(null)}>Hủy bỏ</button>
+                                    <button className="btn btn-primary w-100 fw-bold py-2" onClick={handleSell}>Confirm Withdrawal</button>
+                                    <button className="btn btn-secondary w-100 py-2" onClick={() => setSellTarget(null)}>Cancel</button>
                                 </div>
                             </div>
                         </div>

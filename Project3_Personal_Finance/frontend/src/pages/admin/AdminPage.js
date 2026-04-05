@@ -18,7 +18,7 @@ export default function AdminsPage() {
         <UserTable
             users={users}
             refresh={fetchUsers}
-            showRole="Admin" // 👈 Điểm khác biệt duy nhất làm nên phép màu!
+            showRole="Admin" 
         />
     )
 }
