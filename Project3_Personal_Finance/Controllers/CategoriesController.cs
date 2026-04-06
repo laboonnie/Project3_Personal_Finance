@@ -69,8 +69,19 @@ namespace Project3_Personal_Finance.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
 
+            if (!_context.FinancialJars.Any(j => j.Id == category.JarId))
+                return BadRequest("Jar không tồn tại");
+
             _context.Categories.Add(category);
-            await _context.SaveChangesAsync();
+
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(ex.InnerException?.Message);
+            }
 
             return Ok(category);
         }
@@ -79,22 +90,19 @@ namespace Project3_Personal_Finance.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateCategory(int id, Category category)
         {
-            if (id != category.Id)
-                return BadRequest("ID không khớp");
+            if (id != category.Id) return BadRequest("ID không khớp");
 
             var existing = await _context.Categories.FindAsync(id);
-            if (existing == null)
-                return NotFound();
+            if (existing == null) return NotFound();
 
-            // Update field (chỉnh theo model của bạn)
+            // Bạn nên cập nhật thêm các trường này nữa:
             existing.Name = category.Name;
-            // nếu có thêm field thì update thêm ở đây
+            existing.Type = category.Type;   // Thêm dòng này
+            existing.JarId = category.JarId; // Thêm dòng này
 
             await _context.SaveChangesAsync();
-
             return Ok(existing);
         }
-
         // DELETE: api/Categories/5
         [Authorize(Roles = "Admin")]
         [HttpDelete("{id}")]
