@@ -67,12 +67,12 @@ namespace Project3_Personal_Finance.Controllers
 
             if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
             {
-                return Unauthorized("Email or password is incorrect.");
+                return BadRequest("Email or password is incorrect.");
             }
 
             if (user.IsActive == false)
             {
-                return BadRequest("Tài khoản của bạn đã bị khóa. Vui lòng liên hệ Quản trị viên!");
+                return BadRequest("Your account has been locked. Please contact the administrator!");
             }
 
             // Create JWT Token
@@ -92,7 +92,7 @@ namespace Project3_Personal_Finance.Controllers
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
             if (user == null)
             {
-                return BadRequest("Email không tồn tại trong hệ thống!");
+                return BadRequest("The email address does not exist in the system!");
             }
 
             // 2. Tạo một mật khẩu tạm thời (8 ký tự ngẫu nhiên)
@@ -135,11 +135,11 @@ namespace Project3_Personal_Finance.Controllers
                 // Thực hiện gửi
                 await smtpClient.SendMailAsync(mailMessage);
 
-                return Ok(new { message = "Mật khẩu mới đã được gửi. Vui lòng kiểm tra hộp thư (hoặc mục Spam) của bạn!" });
+                return Ok(new { message = "Your new password has been sent. Please check your inbox (or spam folder)!" });
             }
             catch (Exception ex)
             {
-                return BadRequest($"Lỗi khi gửi email: {ex.Message}");
+                return BadRequest($"Error when sending email: {ex.Message}");
             }
         }
 
@@ -353,12 +353,12 @@ namespace Project3_Personal_Finance.Controllers
         public async Task<IActionResult> ToggleActive(int id)
         {
             var user = await _context.Users.FindAsync(id);
-            if (user == null) return NotFound("Không tìm thấy người dùng.");
+            if (user == null) return NotFound("Cannot find user.");
 
             // Bảo vệ kép: Chặn luôn ở Backend không cho phép khóa tài khoản Admin
             if (user.Role == "Admin")
             {
-                return BadRequest("Không thể thao tác lên tài khoản Quản trị viên!");
+                return BadRequest("Cannot modify admin account!");
             }
 
             // Đảo ngược trạng thái hiện tại (Đang Yes thành No, đang No thành Yes)
@@ -366,7 +366,7 @@ namespace Project3_Personal_Finance.Controllers
 
             await _context.SaveChangesAsync();
 
-            string actionMessage = user.IsActive == true ? "Đã MỞ KHÓA tài khoản thành công!" : "Đã KHÓA tài khoản thành công!";
+            string actionMessage = user.IsActive == true ? "Account successfully UNLOCKED!" : "Account successfully LOCKED!";
             return Ok(new { message = actionMessage, isActive = user.IsActive });
         }
         private bool UserExists(int id)
