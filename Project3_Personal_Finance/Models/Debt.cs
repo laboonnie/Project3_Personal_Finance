@@ -15,6 +15,8 @@ public partial class Debt
     public decimal? InterestRate { get; set; }
 
     public DateOnly? DueDate { get; set; }
-
+    public int? JarId { get; set; }
     public virtual User? User { get; set; } = null!;
+
+    public virtual FinancialJar? Jar { get; set; }
 }
