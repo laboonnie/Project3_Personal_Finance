@@ -30,6 +30,9 @@ public partial class PersonalFinanceDbContext : DbContext
     public virtual DbSet<Transaction> Transactions { get; set; }
 
     public virtual DbSet<User> Users { get; set; }
+    public virtual DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
+    public virtual DbSet<Notification> Notifications { get; set; }
+    public virtual DbSet<BudgetCarriedOver> BudgetCarriedOvers { get; set; }
 
 
     //    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -81,6 +84,10 @@ public partial class PersonalFinanceDbContext : DbContext
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__Debts__UserId__4CA06362");
+            // Bổ sung khóa ngoại liên kết Lọ (JarId)
+            entity.HasOne(d => d.Jar).WithMany()
+                .HasForeignKey(d => d.JarId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<FinancialJar>(entity =>
@@ -104,6 +111,9 @@ public partial class PersonalFinanceDbContext : DbContext
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__Goals__UserId__49C3F6B7");
+            entity.HasOne(d => d.Jar).WithMany()
+                .HasForeignKey(d => d.JarId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<Investment>(entity =>
@@ -119,6 +129,9 @@ public partial class PersonalFinanceDbContext : DbContext
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__Investmen__UserI__4F7CD00D");
+            entity.HasOne(d => d.Jar).WithMany()
+                .HasForeignKey(d => d.JarId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<Transaction>(entity =>
@@ -138,6 +151,22 @@ public partial class PersonalFinanceDbContext : DbContext
                 .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK__Transacti__UserI__4222D4EF");
+
+            entity.HasOne(d => d.Jar).WithMany()
+                .HasForeignKey(d => d.JarId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+
+            entity.HasOne(d => d.Goal).WithMany(p => p.Transactions)
+                .HasForeignKey(d => d.GoalId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(d => d.Debt).WithMany()
+                .HasForeignKey(d => d.DebtId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(d => d.Investment).WithMany(p => p.Transactions)
+                .HasForeignKey(d => d.InvestmentId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<User>(entity =>
@@ -156,6 +185,46 @@ public partial class PersonalFinanceDbContext : DbContext
             entity.Property(e => e.Role)
                 .HasMaxLength(20)
                 .HasDefaultValue("User");
+        });
+        //3 bảng bổ sung 
+
+        modelBuilder.Entity<PasswordResetToken>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Token).HasMaxLength(255).IsRequired();
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())");
+
+            entity.HasOne(d => d.User).WithMany()
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Notification>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Title).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.Message).HasMaxLength(500).IsRequired();
+            entity.Property(e => e.Type).HasMaxLength(50).IsRequired();
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())");
+
+            entity.HasOne(d => d.User).WithMany()
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<BudgetCarriedOver>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.CarriedAmount).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())");
+
+            entity.HasOne(d => d.User).WithMany()
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+
+            entity.HasOne(d => d.Jar).WithMany()
+                .HasForeignKey(d => d.JarId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
         });
 
         OnModelCreatingPartial(modelBuilder);
