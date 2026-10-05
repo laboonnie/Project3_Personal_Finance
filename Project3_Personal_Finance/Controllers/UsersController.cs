@@ -97,6 +97,11 @@ namespace Project3_Personal_Finance.Controllers
 
             // 2. Tạo một mật khẩu tạm thời (8 ký tự ngẫu nhiên)
             string tempPassword = Guid.NewGuid().ToString().Substring(0, 8);
+                return BadRequest("Email không tồn tại trong hệ thống!");
+            }
+
+            // 2. Tạo một mật khẩu tạm thời (8 ký tự ngẫu nhiên)
+            string tempPassword = Guid.NewGuid().ToString().Substring(0, 8);
 
             // 3. Mã hóa mật khẩu tạm thời và lưu vào Database
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(tempPassword);
@@ -135,11 +140,11 @@ namespace Project3_Personal_Finance.Controllers
                 // Thực hiện gửi
                 await smtpClient.SendMailAsync(mailMessage);
 
-                return Ok(new { message = "Your new password has been sent. Please check your inbox (or spam folder)!" });
+                return Ok(new { message = "Mật khẩu mới đã được gửi. Vui lòng kiểm tra hộp thư (hoặc mục Spam) của bạn!" });
             }
             catch (Exception ex)
             {
-                return BadRequest($"Error when sending email: {ex.Message}");
+                return BadRequest($"Lỗi khi gửi email: {ex.Message}");
             }
         }
 
