@@ -13,7 +13,7 @@ public partial class Category
 
     public int JarId { get; set; }
 
-    public virtual FinancialJar Jar { get; set; } = null!;
+    public virtual FinancialJar? Jar { get; set; } = null!;
 
     public virtual ICollection<Transaction> Transactions { get; set; } = new List<Transaction>();
 }

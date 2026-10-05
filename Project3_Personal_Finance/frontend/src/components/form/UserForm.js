@@ -30,14 +30,20 @@ export default function UserForm({ editUser, refresh, defaultRole = "User" }) {
             await userApi.updateUser(form.id, form);
 
         } else {
-            await userApi.createUser(form);
+            await userApi.createUser({
+                name: form.name,
+                email: form.email,
+                role: form.role,
+                isActive: form.isActive,
+                passwordHash: "123456"
+            });
         }
         refresh();
         setForm({
             name: "",
             email: "",
             role: defaultRole,
-            isActives: true
+            isActive: true
         })
     }
     return (

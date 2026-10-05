@@ -21,6 +21,16 @@ public partial class Transaction
 
     public string? Note { get; set; }
 
+    public int? JarId { get; set; }
+
+    public int? GoalId { get; set; }
+
+    public int? DebtId { get; set; }
+
+    public int? InvestmentId { get; set; }
+
+    public string? Location { get; set; }
+
     [JsonIgnore]
 
     public virtual Category? Category { get; set; } = null!;
@@ -28,4 +38,16 @@ public partial class Transaction
     [JsonIgnore]
 
     public virtual User? User { get; set; } = null!;
+
+    [JsonIgnore]
+    public virtual FinancialJar? Jar { get; set; }
+
+    [JsonIgnore]
+    public virtual Goal? Goal { get; set; }
+
+    [JsonIgnore]
+    public virtual Debt? Debt { get; set; }
+
+    [JsonIgnore]
+    public virtual Investment? Investment { get; set; }
 }

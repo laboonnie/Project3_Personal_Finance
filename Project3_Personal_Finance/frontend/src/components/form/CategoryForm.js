@@ -5,7 +5,7 @@ export default function CategoryForm({ category, close, refresh }) {
     const [form, setForm] = useState({
         name: "",
         type: "Expense",
-        jarId: ""
+        jarId: 0
     });
     const [jars, setJars] = useState([]);
     useEffect(() => {
@@ -19,23 +19,38 @@ export default function CategoryForm({ category, close, refresh }) {
         setJars(res.data);
     }
     const handleChange = (e) => {
-        setForm({
-            ...form,
-            [e.target.name]: e.target.value
-        })
-    }
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        if (form.id) {
-            await categoryApi.update(form.id, form)
 
-        } else {
-            await categoryApi.create(form)
+    let value = e.target.value;
 
-        }
-        refresh();
-        close();
+    if (e.target.name === "jarId") {
+        value = parseInt(value);
     }
+
+    setForm({
+        ...form,
+        [e.target.name]: value
+    });
+};
+   const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    // Tạo một bản sao dữ liệu sạch để gửi lên API
+    const dataToSend = {
+        id: form.id,
+        name: form.name,
+        type: form.type,
+        jarId: form.jarId
+    };
+
+    if (form.id) {
+        // Gửi dataToSend thay vì gửi cả form
+        await categoryApi.update(form.id, dataToSend);
+    } else {
+        await categoryApi.create(dataToSend);
+    }
+    refresh();
+    close();
+};
     return (
 
         <div className="category-form">
@@ -57,7 +72,7 @@ export default function CategoryForm({ category, close, refresh }) {
                 </select>
                 <label>Jar</label>
                 <select name="jarId" value={form.jarId} onChange={handleChange}>
-                    <option value="">Select Jar</option>
+                    <option value={0}>Select Jar</option>
 
                     {jars.map(j => (
                         <option key={j.id} value={j.id} >{j.jarName}</option>
