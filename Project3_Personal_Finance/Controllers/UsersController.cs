@@ -59,23 +59,56 @@ namespace Project3_Personal_Finance.Controllers
             return Ok(new { message = "Registration successful!" });
         }
         // Login
+        //[HttpPost("login")]
+        //public IActionResult Login(LoginDto request)
+        //{
+        //    // Find user by email
+        //    var user = _context.Users.FirstOrDefault(u => u.Email == request.Email);
+
+        //    if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+        //    {
+        //        return Unauthorized("Email or password is incorrect.");
+        //    }
+
+        //    if (user.IsActive == false)
+        //    {
+        //        return BadRequest("Tài khoản của bạn đã bị khóa. Vui lòng liên hệ Quản trị viên!");
+        //    }
+
+        //    // Create JWT Token
+        //    var token = CreateToken(user);
+
+        //    return Ok(new
+        //    {
+        //        Token = token,
+        //        User = new { user.Id, user.Name, user.Email, Role = user.Role ?? "User" }
+        //    });
+        //}
         [HttpPost("login")]
         public IActionResult Login(LoginDto request)
         {
-            // Find user by email
             var user = _context.Users.FirstOrDefault(u => u.Email == request.Email);
 
-            if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
+            if (user == null)
             {
-                return Unauthorized("Email or password is incorrect.");
+                return BadRequest(new { message = "Email không tồn tại trong hệ thống!" });
+            }
+
+            // In thông tin ra Console Visual Studio để kiểm tra
+            Console.WriteLine($"[DEBUG LOGIN] Email: {user.Email}, Role: {user.Role}, IsActive: {user.IsActive}");
+
+            bool isPasswordValid = BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash);
+
+            if (!isPasswordValid)
+            {
+                return BadRequest(new { message = "Mật khẩu không đúng! (Xác thực Hash thất bại)" });
             }
 
             if (user.IsActive == false)
             {
-                return BadRequest("Tài khoản của bạn đã bị khóa. Vui lòng liên hệ Quản trị viên!");
+                return BadRequest(new { message = "Tài khoản của bạn đã bị khóa!" });
             }
 
-            // Create JWT Token
             var token = CreateToken(user);
 
             return Ok(new

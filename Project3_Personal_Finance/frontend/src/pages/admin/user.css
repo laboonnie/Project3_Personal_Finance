@@ -1,197 +1,293 @@
-.user-table{
-
-    padding:20px;
-    background:white;
-    border-radius:10px;
-
+.user-table {
+  padding: 20px;
+  background: white;
+  border-radius: 10px;
 }
 
-.user-form{
-
-    background:#fafafa;
-
-    padding:20px;
-
-    border-radius:10px;
-
-    margin-bottom:20px;
-
+.table-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 15px;
 }
 
-.user-form input,
-.user-form select{
-
-    width:100%;
-
-    padding:8px;
-
-    margin-bottom:12px;
-
+table {
+  width: 100%;
+  border-collapse: collapse;
 }
 
-.table-header{
-
-    display:flex;
-
-    justify-content:flex-end;
-
-    margin-bottom:15px;
-
+th {
+  background: #f4f6fa;
+  padding: 12px;
 }
 
-table{
-
-    width:100%;
-
-    border-collapse:collapse;
-
+td {
+  padding: 10px;
+  border-bottom: 1px solid #eee;
 }
 
-th{
-
-    background:#f4f6fa;
-
-    padding:12px;
-
-}
-
-td{
-
-    padding:10px;
-
-    border-bottom:1px solid #eee;
-
-}
-
-button{
-
-    margin:3px;
-
-    padding:6px 12px;
-
-    border:none;
-
-    border-radius:6px;
-
-    background:#4cafef;
-
-    color:white;
-
-    cursor:pointer;
-
-}
-
-button:hover{
-
-    opacity:0.85;
-
-}
-
-.pagination{
-
-    margin-top:20px;
-
-}
-.pagination button {
-    background: #e6f0ff;
-    color: #4cafef;
-}
-
-.pagination button:hover {
-    background: #4cafef;
-    color: white;
-}
-/* button base */
+/* Button Base & Hover Table */
 button {
-    margin: 5px;
-    padding: 7px 16px;
-    border: none;
-    border-radius: 25px;
-    color: white;
-    cursor: pointer;
-    font-weight: 500;
-    transition: 0.3s;
+  margin: 5px;
+  padding: 7px 16px;
+  border: none;
+  border-radius: 25px;
+  color: white;
+  cursor: pointer;
+  font-weight: 500;
+  transition: 0.3s;
 }
 
-/* create button */
+button:hover {
+  opacity: 0.9;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 10px;
+}
+
 .create-btn {
-    background: linear-gradient(45deg, #ea52f2, #d141eb);
-    border-radius: 15px;
+  background: linear-gradient(45deg, #ea52f2, #d141eb);
+  border-radius: 15px;
 }
 
 .create-btn:hover {
-    transform: translateY(-2px);
+  transform: translateY(-2px);
 }
 
-/* edit button */
 .edit-btn {
-    background: linear-gradient(45deg, #ffc107, #ffb300);
-    border-radius: 15px;
+  background: linear-gradient(45deg, #ffc107, #ffb300);
+  border-radius: 15px;
 }
 
-/* delete button */
 .delete-btn {
-    background: linear-gradient(45deg, #ff4d4f, #d9363e);
-    border-radius: 15px;
+  background: linear-gradient(45deg, #ff4d4f, #d9363e);
+  border-radius: 15px;
 }
 
-/* hover effect */
-button:hover {
-    opacity: 0.9;
-}
-/* spacing action buttons */
-.action-buttons {
-    display: flex;
-    gap: 10px;
-}
-/* search box */
+/* Search Box */
 .search-box {
-    padding: 8px 14px;
-    border-radius: 20px;
-    border: 1px solid #ddd;
-    outline: none;
-    transition: 0.3s;
+  padding: 8px 14px;
+  border-radius: 20px;
+  border: 1px solid #ddd;
+  outline: none;
+  transition: 0.3s;
 }
 
 .search-box:focus {
-    border-color: #4cafef;
-    box-shadow: 0 0 6px rgba(76,175,239,0.3);
+  border-color: #4cafef;
+  box-shadow: 0 0 6px rgba(76,175,239,0.3);
 }
+
+/* Pagination */
+.pagination {
+  margin-top: 20px;
+}
+
+.pagination button {
+  background: #e6f0ff;
+  color: #4cafef;
+}
+
+.pagination button:hover {
+  background: #4cafef;
+  color: white;
+}
+/* ==========================================================================
+   USER FORM DESIGN (Chuẩn Layout Modal Header - Content - Footer)
+   ========================================================================== */
+
 .user-form {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-radius: 20px;
 }
 
-/* group active + save cùng hàng */
-.user-form .form-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
+/* --- Modal Header --- */
+.form-header-container {
+  padding: 24px 24px 16px 24px;
 }
 
-/* select Active nhỏ lại */
-.user-form select {
-    width: auto;
-    min-width: 120px;
+.form-header-container h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.01em;
 }
 
-/* save button nằm ngang hàng */
-.user-form button {
-    white-space: nowrap;
-}
-.form-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 10px;
+/* --- Content Area --- */
+.form-content-area {
+  padding: 0 24px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-/* checkbox + text nằm ngang */
-.active-checkbox {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-weight: 500;
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+/* Input Fields Style */
+.form-group input[type="text"],
+.form-group input[type="email"],
+.form-group select {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 0.9375rem;
+  color: #0f172a;
+  background-color: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  outline: none;
+  box-sizing: border-box;
+  transition: all 0.15s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+.form-group select {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+  background-position: right 14px center;
+  background-repeat: no-repeat;
+  background-size: 1.25em 1.25em;
+  padding-right: 40px;
+}
+
+/* --- Content Row 1: Active Toggle Block --- */
+.content-row-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+}
+
+.toggle-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.toggle-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.toggle-sub {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+/* Custom iOS Switch Toggle */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  inset: 0;
+  background-color: #cbd5e1;
+  transition: .3s;
+  border-radius: 24px;
+}
+
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .3s;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+input:checked + .slider {
+  background-color: #2563eb;
+}
+
+input:checked + .slider:before {
+  transform: translateX(20px);
+}
+
+/* --- Modal Footer / Button Tray --- */
+.modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  background: #ffffff;
+}
+
+.button-tray {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cancel-btn {
+  padding: 10px 20px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #475569;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 24px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin: 0;
+}
+
+.cancel-btn:hover {
+  background-color: #f8fafc;
+  color: #0f172a;
+}
+
+.submit-btn {
+  padding: 10px 24px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #ffffff;
+  background-color: #2563eb;
+  border: none;
+  border-radius: 24px;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(37, 99, 235, 0.2);
+  transition: all 0.15s ease;
+  margin: 0;
+}
+
+.submit-btn:hover {
+  background-color: #1d4ed8;
+  transform: translateY(-1px);
 }

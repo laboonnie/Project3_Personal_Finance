@@ -172,19 +172,19 @@ export default function UserTable({ users, refresh, showRole = "User" }) {
 
             </div>
 
-            {
-
-                open && (
-
-                    <Modal close={() => setOpen(false)}>
-
-                        <UserForm editUser={editUser} refresh={refresh} defaultRole={showRole} />
-
-                    </Modal>
-
-                )
-
-            }
+                {
+                    open && (
+                        <Modal close={() => setOpen(false)}>
+                            <UserForm 
+                                editUser={editUser} 
+                                refresh={refresh} 
+                                defaultRole={showRole} 
+                                close={() => setOpen(false)} 
+                            />
+                        </Modal>
+                    )
+                }
+            
 
         </div>
 
