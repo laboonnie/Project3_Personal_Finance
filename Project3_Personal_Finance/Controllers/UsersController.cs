@@ -102,11 +102,17 @@ namespace Project3_Personal_Finance.Controllers
             if (!isPasswordValid)
             {
                 return BadRequest(new { message = "Mật khẩu không đúng! (Xác thực Hash thất bại)" });
+
+                return BadRequest("Email or password is incorrect.");
+
             }
 
             if (user.IsActive == false)
             {
+
                 return BadRequest(new { message = "Tài khoản của bạn đã bị khóa!" });
+
+                return BadRequest("Your account has been locked. Please contact the administrator!");
             }
 
             var token = CreateToken(user);
@@ -125,6 +131,11 @@ namespace Project3_Personal_Finance.Controllers
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
             if (user == null)
             {
+                return BadRequest("The email address does not exist in the system!");
+            }
+
+            // 2. Tạo một mật khẩu tạm thời (8 ký tự ngẫu nhiên)
+            string tempPassword = Guid.NewGuid().ToString().Substring(0, 8);
                 return BadRequest("Email không tồn tại trong hệ thống!");
             }
 
@@ -342,12 +353,12 @@ namespace Project3_Personal_Finance.Controllers
         public async Task<IActionResult> ToggleActive(int id)
         {
             var user = await _context.Users.FindAsync(id);
-            if (user == null) return NotFound("Không tìm thấy người dùng.");
+            if (user == null) return NotFound("Cannot find user.");
 
             // Bảo vệ kép: Chặn luôn ở Backend không cho phép khóa tài khoản Admin
             if (user.Role == "Admin")
             {
-                return BadRequest("Không thể thao tác lên tài khoản Quản trị viên!");
+                return BadRequest("Cannot modify admin account!");
             }
 
             // Đảo ngược trạng thái hiện tại (Đang Yes thành No, đang No thành Yes)
@@ -355,7 +366,7 @@ namespace Project3_Personal_Finance.Controllers
 
             await _context.SaveChangesAsync();
 
-            string actionMessage = user.IsActive == true ? "Đã MỞ KHÓA tài khoản thành công!" : "Đã KHÓA tài khoản thành công!";
+            string actionMessage = user.IsActive == true ? "Account successfully UNLOCKED!" : "Account successfully LOCKED!";
             return Ok(new { message = actionMessage, isActive = user.IsActive });
         }
         private bool UserExists(int id)
@@ -363,4 +374,3 @@ namespace Project3_Personal_Finance.Controllers
             return _context.Users.Any(e => e.Id == id);
         }
     }
-}
