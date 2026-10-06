@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import api from '../../api/api';
+import Modal from '../modal/Modal';
 
 export default function Header({ toggleSidebar }) {
   const navigate = useNavigate();
@@ -66,7 +67,7 @@ export default function Header({ toggleSidebar }) {
 
   const avatarUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=3182ce&color=fff&rounded=true&size=40`;
 
-  return (
+ return (
     <>
       <div className="bg-white shadow-sm p-3 d-flex justify-content-between align-items-center">
         <div className="d-flex align-items-center">
@@ -81,57 +82,84 @@ export default function Header({ toggleSidebar }) {
             style={{ cursor: 'pointer', padding: '5px 10px', borderRadius: '25px', transition: 'background 0.2s' }}
             onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
             onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-            title="Nhấn để xem/sửa hồ sơ"
+            title="Click to view/edit profile"
           >
             <img src={avatarUrl} alt="Avatar" className="me-2 shadow-sm" style={{ width: '36px', height: '36px', borderRadius: '50%' }} />
-            <span className="fw-medium text-dark d-none d-md-inline">Hello, {userName} ⚙️</span>
+            <span className="fw-medium text-dark d-none d-md-inline">{userName} ⚙️</span>
           </div>
 
           <button className="btn btn-outline-danger btn-sm px-3 fw-medium" onClick={handleLogout}>Logout</button>
         </div>
       </div>
-
       {showProfile && (
-        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 1050 }}>
-          <div className="modal-dialog modal-dialog-centered">
-            <div className="modal-content shadow-lg border-0">
-              
-              <div className="modal-header bg-light">
-                <h5 className="modal-title fw-bold">Profile</h5>
-                <button type="button" className="btn-close" onClick={() => setShowProfile(false)}></button>
-              </div>
-
-              <div className="modal-body p-4">
-                <h6 className="text-primary mb-3 border-bottom pb-2">Basic Information</h6>
-                <form onSubmit={handleUpdateProfile} className="mb-4">
-                  <div className="mb-3">
-                    <label className="form-label text-muted small mb-1">Display Name</label>
-                    <input type="text" className="form-control" value={profileData.name} onChange={(e) => setProfileData({...profileData, name: e.target.value})} required />
+        <Modal close={() => setShowProfile(false)}>
+          <div className="profile-modal-container">
+            <div className="profile-modal-header">
+              <h3>Profile</h3>
+              <button type="button" className="close-x-btn" onClick={() => setShowProfile(false)}></button>
+            </div>
+            <div className="profile-modal-body">
+              <div>
+                <div className="profile-section-title primary">Basic Information</div>
+                <form onSubmit={handleUpdateProfile} className="profile-form">
+                  <div className="form-group">
+                    <label>Display Name</label>
+                    <input 
+                      type="text" 
+                      value={profileData.name} 
+                      onChange={(e) => setProfileData({...profileData, name: e.target.value})} 
+                      required 
+                    />
                   </div>
-                  <div className="mb-3">
-                    <label className="form-label text-muted small mb-1">Email Address</label>
-                    <input type="email" className="form-control" value={profileData.email} onChange={(e) => setProfileData({...profileData, email: e.target.value})} required />
+                  <div className="form-group">
+                    <label>Email Address</label>
+                    <input 
+                      type="email" 
+                      value={profileData.email} 
+                      onChange={(e) => setProfileData({...profileData, email: e.target.value})} 
+                      required 
+                    />
                   </div>
-                  <button type="submit" className="btn btn-primary btn-sm w-100">Update Information</button>
+                  <button type="submit" className="btn-action-primary">Update Information</button>
                 </form>
-
-                <h6 className="text-danger mb-3 border-bottom pb-2">Change Password</h6>
-                <form onSubmit={handleChangePassword}>
-                  <div className="mb-3">
-                    <input type="password" className="form-control form-control-sm" placeholder="Current Password" value={passwordData.currentPassword} onChange={(e) => setPasswordData({...passwordData, currentPassword: e.target.value})} required />
+              </div>
+              <div>
+                <div className="profile-section-title danger">Change Password</div>
+                <form onSubmit={handleChangePassword} className="profile-form">
+                  <div className="form-group">
+                    <input 
+                      type="password" 
+                      placeholder="Current Password" 
+                      value={passwordData.currentPassword} 
+                      onChange={(e) => setPasswordData({...passwordData, currentPassword: e.target.value})} 
+                      required 
+                    />
                   </div>
-                  <div className="mb-3">
-                    <input type="password" className="form-control form-control-sm" placeholder="New Password (at least 6 characters)" value={passwordData.newPassword} onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})} required minLength="6" />
+                  <div className="form-group">
+                    <input 
+                      type="password" 
+                      placeholder="New Password (at least 6 characters)" 
+                      value={passwordData.newPassword} 
+                      onChange={(e) => setPasswordData({...passwordData, newPassword: e.target.value})} 
+                      required 
+                      minLength="6" 
+                    />
                   </div>
-                  <div className="mb-3">
-                    <input type="password" className="form-control form-control-sm" placeholder="Confirm New Password" value={passwordData.confirmPassword} onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})} required />
+                  <div className="form-group">
+                    <input 
+                      type="password" 
+                      placeholder="Confirm New Password" 
+                      value={passwordData.confirmPassword} 
+                      onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})} 
+                      required 
+                    />
                   </div>
-                  <button type="submit" className="btn btn-outline-danger btn-sm w-100">Change Password</button>
+                  <button type="submit" className="btn-action-danger">Change Password</button>
                 </form>
               </div>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </>
   );

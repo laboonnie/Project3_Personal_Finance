@@ -30,17 +30,16 @@ namespace Project3_Personal_Finance.Controllers
             _context = context;
             _configuration = configuration;
         }
-        // Register 
+
+        // 1. REGISTER 
         [HttpPost("register")]
         public IActionResult Register(RegisterDto request)
         {
-            // Check if email already exists
             if (_context.Users.Any(u => u.Email == request.Email))
             {
                 return BadRequest("Email have been used.");
             }
 
-            // Hash the password using BCrypt
             string passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password);
 
             var user = new User
@@ -58,32 +57,8 @@ namespace Project3_Personal_Finance.Controllers
 
             return Ok(new { message = "Registration successful!" });
         }
-        // Login
-        //[HttpPost("login")]
-        //public IActionResult Login(LoginDto request)
-        //{
-        //    // Find user by email
-        //    var user = _context.Users.FirstOrDefault(u => u.Email == request.Email);
 
-        //    if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash))
-        //    {
-        //        return Unauthorized("Email or password is incorrect.");
-        //    }
-
-        //    if (user.IsActive == false)
-        //    {
-        //        return BadRequest("Tài khoản của bạn đã bị khóa. Vui lòng liên hệ Quản trị viên!");
-        //    }
-
-        //    // Create JWT Token
-        //    var token = CreateToken(user);
-
-        //    return Ok(new
-        //    {
-        //        Token = token,
-        //        User = new { user.Id, user.Name, user.Email, Role = user.Role ?? "User" }
-        //    });
-        //}
+        // 2. LOGIN
         [HttpPost("login")]
         public IActionResult Login(LoginDto request)
         {
@@ -94,7 +69,6 @@ namespace Project3_Personal_Finance.Controllers
                 return BadRequest(new { message = "Email không tồn tại trong hệ thống!" });
             }
 
-            // In thông tin ra Console Visual Studio để kiểm tra
             Console.WriteLine($"[DEBUG LOGIN] Email: {user.Email}, Role: {user.Role}, IsActive: {user.IsActive}");
 
             bool isPasswordValid = BCrypt.Net.BCrypt.Verify(request.Password, user.PasswordHash);
@@ -102,17 +76,11 @@ namespace Project3_Personal_Finance.Controllers
             if (!isPasswordValid)
             {
                 return BadRequest(new { message = "Mật khẩu không đúng! (Xác thực Hash thất bại)" });
-
-                return BadRequest("Email or password is incorrect.");
-
             }
 
             if (user.IsActive == false)
             {
-
                 return BadRequest(new { message = "Tài khoản của bạn đã bị khóa!" });
-
-                return BadRequest("Your account has been locked. Please contact the administrator!");
             }
 
             var token = CreateToken(user);
@@ -124,32 +92,23 @@ namespace Project3_Personal_Finance.Controllers
             });
         }
 
+        // 3. FORGOT PASSWORD
         [HttpPost("forgot-password")]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto request)
         {
-            // 1. Kiểm tra xem email có tồn tại không
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
             if (user == null)
             {
-                return BadRequest("The email address does not exist in the system!");
+                return BadRequest(new { message = "Email không tồn tại trong hệ thống!" });
             }
 
-            // 2. Tạo một mật khẩu tạm thời (8 ký tự ngẫu nhiên)
-            string tempPassword = Guid.NewGuid().ToString().Substring(0, 8);
-                return BadRequest("Email không tồn tại trong hệ thống!");
-            }
-
-            // 2. Tạo một mật khẩu tạm thời (8 ký tự ngẫu nhiên)
             string tempPassword = Guid.NewGuid().ToString().Substring(0, 8);
 
-            // 3. Mã hóa mật khẩu tạm thời và lưu vào Database
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(tempPassword);
             await _context.SaveChangesAsync();
 
-            // 4. CẤU HÌNH GỬI EMAIL QUA GMAIL
             try
             {
-                // THAY THẾ BẰNG EMAIL VÀ MẬT KHẨU ỨNG DỤNG CỦA BẠN
                 string fromEmail = "viethoangb05@gmail.com";
                 string appPassword = "madf pndo rpzb odjj";
 
@@ -163,7 +122,7 @@ namespace Project3_Personal_Finance.Controllers
                 var mailMessage = new MailMessage
                 {
                     From = new MailAddress(fromEmail, "Finance App Support"),
-                    Subject = "Khôi phục mật khẩu - Personal Finance ",
+                    Subject = "Khôi phục mật khẩu - Personal Finance",
                     Body = $@"
                         <h3>Xin chào {user.Name},</h3>
                         <p>Hệ thống đã nhận được yêu cầu khôi phục mật khẩu của bạn.</p>
@@ -171,19 +130,17 @@ namespace Project3_Personal_Finance.Controllers
                         <p>Vui lòng đăng nhập và đổi lại mật khẩu của riêng bạn ngay lập tức để đảm bảo an toàn.</p>
                         <br/>
                         <p>Trân trọng,<br/>Đội ngũ Personal Finance</p>",
-                    IsBodyHtml = true, // Cho phép dùng thẻ HTML trong nội dung
+                    IsBodyHtml = true,
                 };
 
                 mailMessage.To.Add(user.Email);
-
-                // Thực hiện gửi
                 await smtpClient.SendMailAsync(mailMessage);
 
                 return Ok(new { message = "Mật khẩu mới đã được gửi. Vui lòng kiểm tra hộp thư (hoặc mục Spam) của bạn!" });
             }
             catch (Exception ex)
             {
-                return BadRequest($"Lỗi khi gửi email: {ex.Message}");
+                return BadRequest(new { message = $"Lỗi khi gửi email: {ex.Message}" });
             }
         }
 
@@ -193,6 +150,7 @@ namespace Project3_Personal_Finance.Controllers
             return int.Parse(userIdString!);
         }
 
+        // 4. PROFILE
         [Authorize]
         [HttpGet("profile")]
         public async Task<IActionResult> GetProfile()
@@ -212,7 +170,6 @@ namespace Project3_Personal_Finance.Controllers
             var user = await _context.Users.FindAsync(userId);
             if (user == null) return NotFound("Cannot find user.");
 
-            // Check if the new email is already in use by another account
             if (user.Email != request.Email && _context.Users.Any(u => u.Email == request.Email))
             {
                 return BadRequest("Email is already in use by another account.");
@@ -225,7 +182,7 @@ namespace Project3_Personal_Finance.Controllers
             return Ok(new { message = "Update profile successfully!", name = user.Name });
         }
 
-        // 3. ĐỔI MẬT KHẨU
+        // 5. CHANGE PASSWORD
         [Authorize]
         [HttpPut("change-password")]
         public async Task<IActionResult> ChangePassword(ChangePasswordDto request)
@@ -234,28 +191,27 @@ namespace Project3_Personal_Finance.Controllers
             var user = await _context.Users.FindAsync(userId);
             if (user == null) return NotFound("Cannot find user.");
 
-            // Verify current password
             if (!BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
             {
                 return BadRequest("Current password is incorrect.");
             }
 
-            // Hash and save new password
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
             await _context.SaveChangesAsync();
 
             return Ok(new { message = "Change password successfully!" });
         }
-        // Create JWT Token
+
+        // 6. HELPER: CREATE TOKEN
         private string CreateToken(User user)
         {
             List<Claim> claims = new List<Claim>
-        {
-            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
-            new Claim(ClaimTypes.Name, user.Name),
-            new Claim(ClaimTypes.Email, user.Email),
-            new Claim(ClaimTypes.Role, user.Role)
-        };
+            {
+                new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
+                new Claim(ClaimTypes.Name, user.Name),
+                new Claim(ClaimTypes.Email, user.Email),
+                new Claim(ClaimTypes.Role, user.Role ?? "User")
+            };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(
                 _configuration.GetSection("Jwt:Key").Value!));
@@ -264,22 +220,20 @@ namespace Project3_Personal_Finance.Controllers
 
             var token = new JwtSecurityToken(
                 claims: claims,
-                expires: DateTime.Now.AddDays(1), // Token hết hạn sau 1 ngày
+                expires: DateTime.Now.AddDays(1),
                 signingCredentials: creds
             );
 
-            var jwt = new JwtSecurityTokenHandler().WriteToken(token);
-            return jwt;
+            return new JwtSecurityTokenHandler().WriteToken(token);
         }
 
-        // GET: api/Users
+        // 7. CRUD USERS
         [HttpGet]
         public async Task<ActionResult<IEnumerable<User>>> GetUsers()
         {
             return await _context.Users.ToListAsync();
         }
 
-        // GET: api/Users/5
         [HttpGet("{id}")]
         public async Task<ActionResult<User>> GetUser(int id)
         {
@@ -293,8 +247,6 @@ namespace Project3_Personal_Finance.Controllers
             return user;
         }
 
-        // PUT: api/Users/5
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPut("{id}")]
         public async Task<IActionResult> PutUser(int id, User user)
         {
@@ -324,8 +276,6 @@ namespace Project3_Personal_Finance.Controllers
             return NoContent();
         }
 
-        // POST: api/Users
-        // To protect from overposting attacks, see https://go.microsoft.com/fwlink/?linkid=2123754
         [HttpPost]
         public async Task<ActionResult<User>> PostUser(User user)
         {
@@ -341,13 +291,11 @@ namespace Project3_Personal_Finance.Controllers
             user.CreatedAt = DateTime.Now;
 
             _context.Users.Add(user);
-
             await _context.SaveChangesAsync();
 
             return Ok(user);
         }
 
-        // PUT: api/Users/5/toggle-active
         [Authorize(Roles = "Admin")]
         [HttpPut("{id}/toggle-active")]
         public async Task<IActionResult> ToggleActive(int id)
@@ -355,22 +303,21 @@ namespace Project3_Personal_Finance.Controllers
             var user = await _context.Users.FindAsync(id);
             if (user == null) return NotFound("Cannot find user.");
 
-            // Bảo vệ kép: Chặn luôn ở Backend không cho phép khóa tài khoản Admin
             if (user.Role == "Admin")
             {
                 return BadRequest("Cannot modify admin account!");
             }
 
-            // Đảo ngược trạng thái hiện tại (Đang Yes thành No, đang No thành Yes)
             user.IsActive = !user.IsActive;
-
             await _context.SaveChangesAsync();
 
             string actionMessage = user.IsActive == true ? "Account successfully UNLOCKED!" : "Account successfully LOCKED!";
             return Ok(new { message = actionMessage, isActive = user.IsActive });
         }
+
         private bool UserExists(int id)
         {
             return _context.Users.Any(e => e.Id == id);
         }
     }
+}
