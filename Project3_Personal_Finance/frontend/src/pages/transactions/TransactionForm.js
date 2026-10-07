@@ -3,7 +3,11 @@ import { transactionApi } from '../../api/transactionApi';
 import categoryApi from '../../api/categoryApi';
 import './Transactions.css';
 
-const TransactionForm = ({ onSuccess, onCancel }) => {  
+const TransactionForm = ({
+                             onSuccess,
+                             onCancel,
+                             transactionToEdit = null
+                         }) => {
     const [formData, setFormData] = useState({
         categoryId: '',
         amount: '',
@@ -29,6 +33,18 @@ const TransactionForm = ({ onSuccess, onCancel }) => {
             setLoadingCategories(false);
         }
     }, [formData.type, allCategories]);
+    useEffect(() => {
+        if (transactionToEdit) {
+            setFormData({
+                categoryId: transactionToEdit.categoryId?.toString() || '',
+                amount: transactionToEdit.amount || '',
+                type: transactionToEdit.type || 'Expense',
+                transactionDate:
+                    transactionToEdit.transactionDate?.split('T')[0] || '',
+                note: transactionToEdit.note || ''
+            });
+        }
+    }, [transactionToEdit]);
 
     const loadAllCategories = async () => {
         try {
@@ -73,7 +89,14 @@ const TransactionForm = ({ onSuccess, onCancel }) => {
                 note: formData.note || ''
             };
 
-            await transactionApi.create(dataToSend);  
+            if (transactionToEdit) {
+                await transactionApi.update(
+                    transactionToEdit.id,
+                    dataToSend
+                );
+            } else {
+                await transactionApi.create(dataToSend);
+            }
 
             if (onSuccess) {
                 onSuccess();
@@ -96,7 +119,11 @@ const TransactionForm = ({ onSuccess, onCancel }) => {
 
     return (
         <div className="transaction-form-container">
-            <h3> Add New Transaction</h3>
+            <h3>
+                {transactionToEdit
+                    ? 'Edit Transaction'
+                    : 'Add New Transaction'}
+            </h3>
 
             {error && <div className="alert alert-danger">{error}</div>}
 
@@ -117,6 +144,17 @@ const TransactionForm = ({ onSuccess, onCancel }) => {
                             onClick={() => setFormData(prev => ({ ...prev, type: 'Expense', categoryId: '' }))}
                         >
                              Expense
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="btn-submit"
+                        >
+                            {loading
+                                ? 'Processing...'
+                                : transactionToEdit
+                                    ? 'Update Transaction'
+                                    : 'Save Transaction'}
                         </button>
                     </div>
                 </div>

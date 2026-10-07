@@ -8,10 +8,11 @@ const TransactionList = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [showForm, setShowForm] = useState(false);
+    const [transactionToEdit, setTransactionToEdit] = useState(null);
     const [refresh, setRefresh] = useState(false);
     const [filter, setFilter] = useState({
-        month: new Date().getMonth() + 1,
-        year: new Date().getFullYear(),
+        month: 'all',
+        year: 'all',
         type: 'all'
     });
     const [availableYears, setAvailableYears] = useState([]);
@@ -34,10 +35,18 @@ const TransactionList = () => {
     const loadTransactions = useCallback(async () => {
         try {
             setLoading(true);
-            const response = await transactionApi.getMonthlyTransactions(
-                filter.month,
-                filter.year
-            );
+
+            let response;
+
+            if (filter.month === 'all' || filter.year === 'all') {
+                response = await transactionApi.getAll();
+            } else {
+                response = await transactionApi.getMonthlyTransactions(
+                    filter.month,
+                    filter.year
+                );
+            }
+
             setTransactions(response.data || []);
         } catch (err) {
             console.error('Error loading transactions:', err);
@@ -52,34 +61,54 @@ const TransactionList = () => {
     }, [loadAvailableYears]);
 
     useEffect(() => {
-        if (filter.year) {
-            loadTransactions();
-        }
-    }, [loadTransactions, filter.year, refresh]);
+        loadTransactions();
+    }, [loadTransactions, refresh]);
+    const handleEdit = (transaction) => {
+        setTransactionToEdit(transaction);
+        setShowForm(true);
+    };
 
-    // const handleDelete = async (id) => {
-    //     if (window.confirm('Are you sure you want to delete this transaction?')) {
-    //         try {
-    //             await transactionApi.delete(id);
-    //             setRefresh(prev => !prev);
-    //             loadAvailableYears();
-    //         } catch (err) {
-    //             alert('Delete failed');
-    //         }
-    //     }
-    // };
+    const handleDelete = async (id) => {
+        if (!window.confirm('Are you sure you want to delete this transaction?')) {
+            return;
+        }
+
+        try {
+            await transactionApi.delete(id);
+
+            setRefresh(prev => !prev);
+            loadAvailableYears();
+        } catch (err) {
+            const message =
+                err.response?.data?.message ||
+                'Delete failed';
+
+            alert(message);
+        }
+    };
 
     const handleSuccess = () => {
         setShowForm(false);
+        setTransactionToEdit(null);
         setRefresh(prev => !prev);
     };
 
     const handleMonthChange = (e) => {
-        setFilter({ ...filter, month: parseInt(e.target.value) });
+        const value = e.target.value;
+
+        setFilter({
+            ...filter,
+            month: value === 'all' ? 'all' : parseInt(value)
+        });
     };
 
     const handleYearChange = (e) => {
-        setFilter({ ...filter, year: parseInt(e.target.value) });
+        const value = e.target.value;
+
+        setFilter({
+            ...filter,
+            year: value === 'all' ? 'all' : parseInt(value)
+        });
     };
 
     const handleTypeChange = (e) => {
@@ -139,7 +168,13 @@ const TransactionList = () => {
         <div className="transaction-list-container">
             <div className="transaction-header">
                 <h3>📋 Transaction History</h3>
-                <button className="btn-new-transaction" onClick={() => setShowForm(true)}>
+                <button
+                    className="btn-new-transaction"
+                    onClick={() => {
+                        setTransactionToEdit(null);
+                        setShowForm(true);
+                    }}
+                >
                     ➕ New Transaction
                 </button>
             </div>
@@ -147,19 +182,27 @@ const TransactionList = () => {
             <div className="filters-section">
                 <div className="filters">
                     <select value={filter.month} onChange={handleMonthChange}>
+                        <option value="all">All Months</option>
+
                         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => (
-                            <option key={m} value={m}>Month {m}</option>
+                            <option key={m} value={m}>
+                                Month {m}
+                            </option>
                         ))}
                     </select>
 
-                    <select value={filter.year} onChange={handleYearChange} disabled={loadingYears}>
-                        {loadingYears ? (
-                            <option>Loading...</option>
-                        ) : (
-                            availableYears.map(year => (
-                                <option key={year} value={year}>{year}</option>
-                            ))
-                        )}
+                    <select
+                        value={filter.year}
+                        onChange={handleYearChange}
+                        disabled={loadingYears}
+                    >
+                        <option value="all">All Years</option>
+
+                        {availableYears.map(year => (
+                            <option key={year} value={year}>
+                                {year}
+                            </option>
+                        ))}
                     </select>
 
                     <select value={filter.type} onChange={handleTypeChange}>
@@ -172,8 +215,12 @@ const TransactionList = () => {
 
             {showForm && (
                 <TransactionForm
+                    transactionToEdit={transactionToEdit}
                     onSuccess={handleSuccess}
-                    onCancel={() => setShowForm(false)}
+                    onCancel={() => {
+                        setShowForm(false);
+                        setTransactionToEdit(null);
+                    }}
                 />
             )}
 
@@ -210,15 +257,23 @@ const TransactionList = () => {
 
                                     <div className="transaction-amount">
                                         <span className={transaction.type.toLowerCase()}>
-                                            {transaction.type === 'Income' ? '+' : '-'} {formatMoney(transaction.amount)}
+                                                        {transaction.type === 'Income' ? '+' : '-'} {formatMoney(transaction.amount)}
                                         </span>
-                                        {/* <button
+                                        <button
+                                            onClick={() => handleEdit(transaction)}
+                                            className="btn-edit"
+                                            title="Edit"
+                                        >
+                                            ✏️
+                                        </button>
+
+                                        <button
                                             onClick={() => handleDelete(transaction.id)}
                                             className="btn-delete"
                                             title="Delete"
                                         >
                                             🗑️
-                                        </button> */}
+                                        </button>
                                     </div>
                                 </div>
                             ))}

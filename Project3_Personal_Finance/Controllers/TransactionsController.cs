@@ -26,6 +26,17 @@ namespace Project3_Personal_Finance.Controllers
                 throw new UnauthorizedAccessException("User not authenticated");
             return int.Parse(userIdString);
         }
+        private async Task<bool> HasExpenseAfter(Transaction transaction)
+        {
+            return await _context.Transactions.AnyAsync(t =>
+                t.UserId == transaction.UserId &&
+                t.Type == "Expense" &&
+                (
+                    t.TransactionDate > transaction.TransactionDate ||
+                    (t.TransactionDate == transaction.TransactionDate && t.Id > transaction.Id)
+                )
+            );
+        }
 
         // ==================== CREATE ====================
         [HttpPost]
@@ -232,30 +243,154 @@ namespace Project3_Personal_Finance.Controllers
                 return StatusCode(500, new { message = ex.Message });
             }
         }
+        // ==================== GET ALL TRANSACTIONS ====================
+        [HttpGet]
+        public async Task<IActionResult> GetAllTransactions()
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
 
-        // ==================== DELETE ====================
-        //[HttpDelete("{id}")]
-        //public async Task<IActionResult> DeleteTransaction(int id)
-        //{
-        //    try
-        //    {
-        //        var userId = GetCurrentUserId();
+                var data = await _context.Transactions
+                    .Include(t => t.Category)
+                    .ThenInclude(c => c.Jar)
+                    .Where(t => t.UserId == userId)
+                    .OrderByDescending(t => t.TransactionDate)
+                    .ThenByDescending(t => t.Id)
+                    .Select(t => new
+                    {
+                        t.Id,
+                        t.Amount,
+                        t.Type,
+                        t.TransactionDate,
+                        t.Note,
 
-        //        var transaction = await _context.Transactions
-        //            .FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
+                        CategoryId = t.CategoryId,
+                        CategoryName = t.Category.Name,
 
-        //        if (transaction == null)
-        //            return NotFound(new { message = "Transaction not found" });
+                        JarId = t.Category.JarId,
+                        JarName = t.Category.Jar.JarName,
+                        JarCode = t.Category.Jar.JarCode
+                    })
+                    .ToListAsync();
 
-        //        _context.Transactions.Remove(transaction);
-        //        await _context.SaveChangesAsync();
+                return Ok(data);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = ex.Message });
+            }
+        }
+        // ==================== UPDATE ====================
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateTransaction(
+            int id,
+            [FromBody] TransactionCreateDto request)
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
 
-        //        return Ok(new { message = "Delete successfully" });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return StatusCode(500, new { message = ex.Message });
-        //    }
-        //}
-    }
-}
+                var transaction = await _context.Transactions
+                    .FirstOrDefaultAsync(t =>
+                        t.Id == id &&
+                        t.UserId == userId);
+
+                if (transaction == null)
+                {
+                    return NotFound(new
+                    {
+                        message = "Transaction not found"
+                    });
+                }
+
+                // Nếu Income đã có Expense phát sinh sau đó -> khóa
+                if (transaction.Type == "Income")
+                {
+                    var hasExpenseAfter = await HasExpenseAfter(transaction);
+
+                    if (hasExpenseAfter)
+                    {
+                        return BadRequest(new
+                        {
+                            message = "This income cannot be edited because expenses have already occurred after it."
+                        });
+                    }
+                }
+
+                transaction.CategoryId = request.CategoryId;
+                transaction.Amount = request.Amount;
+                transaction.Type = request.Type;
+                transaction.TransactionDate = request.TransactionDate;
+                transaction.Note = request.Note;
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    message = "Transaction updated successfully"
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    message = ex.Message
+                });
+            }
+        }
+
+                // ==================== DELETE ====================
+                [HttpDelete("{id}")]
+                public async Task<IActionResult> DeleteTransaction(int id)
+                {
+                    try
+                    {
+                        var userId = GetCurrentUserId();
+
+                        var transaction = await _context.Transactions
+                            .FirstOrDefaultAsync(t =>
+                                t.Id == id &&
+                                t.UserId == userId);
+
+                        if (transaction == null)
+                        {
+                            return NotFound(new
+                            {
+                                message = "Transaction not found"
+                            });
+                        }
+
+                        if (transaction.Type == "Income")
+                        {
+                            var hasExpenseAfter = await HasExpenseAfter(transaction);
+
+                            if (hasExpenseAfter)
+                            {
+                                return BadRequest(new
+                                {
+                                    message = "This income cannot be deleted because expenses have already occurred after it."
+                                });
+                            }
+                        }
+
+                        _context.Transactions.Remove(transaction);
+                        await _context.SaveChangesAsync();
+
+                        return Ok(new
+                        {
+                            message = "Transaction deleted successfully"
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        return StatusCode(500, new
+                        {
+                            message = ex.Message
+                        });
+                    }
+                }
+
+            } // đóng TransactionsController
+
+        } // đóng namespace
