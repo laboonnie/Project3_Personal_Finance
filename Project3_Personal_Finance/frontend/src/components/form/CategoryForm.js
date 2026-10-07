@@ -52,37 +52,60 @@ export default function CategoryForm({ category, close, refresh }) {
     close();
 };
     return (
+        <form className="category-form" onSubmit={handleSubmit}>
+            {/* MODAL HEADER */}
+            <div className="form-header-container">
+                <h3>{form.id ? "Update Category" : "Create Category"}</h3>
+            </div>
 
-        <div className="category-form">
+            {/* CONTENT AREA */}
+            <div className="form-content-area">
+                <div className="form-group">
+                    <label>Name</label>
+                    <input
+                        name="name"
+                        type="text"
+                        placeholder="Enter category name"
+                        value={form.name}
+                        onChange={handleChange}
+                        required
+                    />
+                </div>
 
-            <h3>
-                {
-                    form.id ? "Update Category" : "Create Category"
-                }
-            </h3>
+                <div className="form-group">
+                    <label>Type</label>
+                    <select name="type" value={form.type} onChange={handleChange}>
+                        <option value="Expense">Expense</option>
+                        <option value="Income">Income</option>
+                    </select>
+                </div>
 
+                <div className="form-group">
+                    <label>Jar</label>
+                    <select name="jarId" value={form.jarId} onChange={handleChange}>
+                        <option value={0}>Select Jar</option>
+                        {jars.map((j) => (
+                            <option key={j.id} value={j.id}>
+                                {j.jarName}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+            </div>
 
-            <form onSubmit={handleSubmit}>
-                <label>Name</label>
-                <input name="name" value={form.name} onChange={handleChange} />
-                <label>Type</label>
-                <select name="type" value={form.type} onChange={handleChange}>
-                    <option>Expense</option>
-                    <option>Income</option>
-                </select>
-                <label>Jar</label>
-                <select name="jarId" value={form.jarId} onChange={handleChange}>
-                    <option value={0}>Select Jar</option>
-
-                    {jars.map(j => (
-                        <option key={j.id} value={j.id} >{j.jarName}</option>
-                    ))
-                    }
-                </select>
-                <button type="submit" className="create-btn"> Save </button>
-                <button className="delete-btn" type="button" onClick={close} > Cancel</button>
-            </form>
-        </div>
-
+            {/* MODAL FOOTER */}
+            <div className="modal-footer">
+                <div className="button-tray">
+                    {close && (
+                        <button type="button" className="cancel-btn" onClick={close}>
+                            Cancel
+                        </button>
+                    )}
+                    <button type="submit" className="submit-btn">
+                        Save
+                    </button>
+                </div>
+            </div>
+        </form>
     );
 }

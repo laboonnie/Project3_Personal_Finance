@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import userApi from "../../api/userApi";
 
-export default function UserForm({ editUser, refresh, defaultRole = "User" }) {
+export default function UserForm({ editUser, refresh, defaultRole = "User" , close}) {
     const [form, setForm] = useState({
         name: "",
         email: "",
@@ -46,71 +46,151 @@ export default function UserForm({ editUser, refresh, defaultRole = "User" }) {
             isActive: true
         })
     }
+    // return (
+
+    //     <form
+    //         className="user-form"
+    //         onSubmit={handleSubmit}
+    //     >
+
+    //         <h3>
+
+    //             {form.id
+    //                 ? "Update User"
+    //                 : "Create User"}
+
+    //         </h3>
+
+
+    //         <label>Name</label>
+
+    //         <input
+    //             name="name"
+    //             value={form.name}
+    //             onChange={handleChange}
+    //         />
+
+
+    //         <label>Email</label>
+
+    //         <input
+    //             name="email"
+    //             value={form.email}
+    //             onChange={handleChange}
+    //         />
+
+
+    //         <label>Role</label>
+
+    //         <select
+    //             name="role"
+    //             value={form.role}
+    //             onChange={handleChange}
+    //         >
+
+    //             <option>User</option>
+    //             <option>Admin</option>
+
+    //         </select>
+
+
+    //         <div className="form-row">
+    //             <label className="active-checkbox">
+    //                 <input
+    //                     type="checkbox"
+    //                     name="isActive"
+    //                     checked={form.isActive}
+    //                     onChange={handleChange}
+    //                 />
+    //                 Active
+    //             </label>
+
+    //             <button type="submit" className="create-btn">
+    //                 {form.id ? "Update" : "Add"}
+    //             </button>
+    //         </div>
+
+    //     </form>
+
+    // )
     return (
+    <form className="user-form" onSubmit={handleSubmit}>
+      {/* MODAL HEADER */}
+      <div className="form-header-container">
+        <h3>{form.id ? "Update User" : "Create User"}</h3>
+      </div>
 
-        <form
-            className="user-form"
-            onSubmit={handleSubmit}
-        >
+      {/* CONTENT AREA */}
+      <div className="form-content-area">
+        {/* Name Input */}
+        <div className="form-group">
+          <label>Name</label>
+          <input
+            name="name"
+            placeholder="Enter full name"
+            value={form.name}
+            onChange={handleChange}
+            required
+          />
+        </div>
 
-            <h3>
+        {/* Email Input */}
+        <div className="form-group">
+          <label>Email</label>
+          <input
+            type="email"
+            name="email"
+            placeholder="name@company.com"
+            value={form.email}
+            onChange={handleChange}
+            required
+          />
+        </div>
 
-                {form.id
-                    ? "Update User"
-                    : "Create User"}
+        {/* Role Select */}
+        <div className="form-group">
+          <label>Role</label>
+          <select
+            name="role"
+            value={form.role}
+            onChange={handleChange}
+          >
+            <option value="User">User</option>
+            <option value="Admin">Admin</option>
+          </select>
+        </div>
 
-            </h3>
-
-
-            <label>Name</label>
-
+        {/* CONTENT ROW 1: Active Status Toggle Switch */}
+        <div className="content-row-toggle">
+          <div className="toggle-info">
+            <span className="toggle-title">Active Status</span>
+            <span className="toggle-sub">Enable or disable user access</span>
+          </div>
+          <label className="switch">
             <input
-                name="name"
-                value={form.name}
-                onChange={handleChange}
+              type="checkbox"
+              name="isActive"
+              checked={form.isActive}
+              onChange={handleChange}
             />
+            <span className="slider"></span>
+          </label>
+        </div>
+      </div>
 
-
-            <label>Email</label>
-
-            <input
-                name="email"
-                value={form.email}
-                onChange={handleChange}
-            />
-
-
-            <label>Role</label>
-
-            <select
-                name="role"
-                value={form.role}
-                onChange={handleChange}
-            >
-
-                <option>User</option>
-                <option>Admin</option>
-
-            </select>
-
-
-            <div className="form-row">
-                <label className="active-checkbox">
-                    <input
-                        type="checkbox"
-                        name="isActive"
-                        checked={form.isActive}
-                        onChange={handleChange}
-                    />
-                    Active
-                </label>
-
-                <button type="submit" className="create-btn">
-                    {form.id ? "Update" : "Add"}
-                </button>
-            </div>
-
-        </form>
-
-    )
+      {/* MODAL FOOTER / BUTTON TRAY */}
+      <div className="modal-footer">
+        <div className="button-tray">
+          {close && (
+            <button type="button" className="cancel-btn" onClick={close}>
+              Cancel
+            </button>
+          )}
+          <button type="submit" className="submit-btn">
+            {form.id ? "Update User" : "Create User"}
+          </button>
+        </div>
+      </div>
+    </form>
+  );
 }

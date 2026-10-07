@@ -14,31 +14,74 @@ const Login = () => {
 
     const navigate = useNavigate();
 
-    const handleLogin = async (e) => {
-        e.preventDefault();
-        try {
-            const response = await api.post('/Users/login', { email, password });
+    // const handleLogin = async (e) => {
+    //     e.preventDefault();
+    //     try {
+    //         const response = await api.post('/Users/login', { email, password });
+    //         const user = response.data.user || response.data.User;
+    //         const userRole = (user?.role || user?.Role || '').toString();
             
-            localStorage.setItem('token', response.data.token);
-            localStorage.setItem('userName', response.data.user.name);
-            localStorage.setItem('role', response.data.user.role); 
+    //         localStorage.setItem('token', response.data.token|| response.data.Token);
+    //         localStorage.setItem('userName', response.data.user.name|| user?.Name);
+    //         localStorage.setItem('role', response.data.user.role); 
 
-            toast.success('Login successful! Welcome back, ' + response.data.user.name);
+    //         toast.success('Login successful! Welcome back, ' + response.data.user.name);
 
-            if (response.data.user.role === 'Admin') {
-                navigate('/admin/dashboard'); 
-            } else {
-                navigate('/dashboard');
-            }
-        } catch (error) {
-            if (error.response && error.response.data) {
-                toast.error(error.response.data); 
-            } else {
-                toast.error("An error occurred during login! Please try again.");
-            }
+    //        if (userRole.toLowerCase() === 'admin') {
+    //             navigate('/admin/dashboard'); 
+    //         } else {
+    //             navigate('/dashboard');
+    //         }
+    //     } catch (error) {
+    //         if (error.response && error.response.data) {
+    //             toast.error(error.response.data); 
+    //         } else {
+    //             toast.error("An error occurred during login! Please try again.");
+    //         }
+    //     }
+    // };
+const handleLogin = async (e) => {
+    e.preventDefault();
+    try {
+        console.log(">>> Sending login payload:", { email, password });
+        
+        const response = await api.post('/Users/login', { email, password });
+        
+        console.log(">>> API Response Data:", response.data);
+
+        // Lấy object user an toàn
+        const user = response.data.user || response.data.User;
+        const role = user?.role || user?.Role || '';
+
+        console.log(">>> Detected User Role:", role);
+
+        localStorage.setItem('token', response.data.token || response.data.Token);
+        localStorage.setItem('userName', user?.name || user?.Name);
+        localStorage.setItem('role', role);
+
+        toast.success(`Login successful! Role: ${role}`);
+
+        // So sánh role (Chuyển về chữ thường để tránh lỗi hoa/thường)
+        if (role.toString().toLowerCase() === 'admin') {
+            console.log(">>> Navigating to Admin Dashboard...");
+            navigate('/admin/dashboard');
+        } else {
+            console.log(">>> Navigating to User Dashboard...");
+            navigate('/dashboard');
         }
-    };
+    } catch (error) {
+        console.error(">>> Login Error Catch Block:", error);
 
+        // Bắt message lỗi từ Backend
+        const errorMessage = 
+            error.response?.data?.message || 
+            (typeof error.response?.data === 'string' ? error.response.data : null) ||
+            "An error occurred during login!";
+
+        console.log(">>> Error Message to Display:", errorMessage);
+        toast.error(`Lỗi: ${errorMessage}`);
+    }
+};
     const handleForgotPassword = async (e) => {
         e.preventDefault();
         setIsLoading(true);

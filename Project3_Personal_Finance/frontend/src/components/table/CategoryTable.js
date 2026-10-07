@@ -188,38 +188,22 @@ export default function CategoryTable({ categories, refresh }) {
 
             }
             
-{
-
-                deleteId && (
-
-                    <Modal close={()=>setDeleteId(null)}>
-
-                        <h3>
-                            Delete Category?
-                        </h3>
-
-                        <p>
-                            Are you sure you want to delete this category?
-                        </p>
-
-                        <button className="delete-btn"
-                            onClick={handleDelete}
-                        >
-                            Yes Delete
-                        </button>
-
-                        <button
-                            onClick={()=>setDeleteId(null)}
-                        >
-                            Cancel
-                        </button>
-
-                    </Modal>
-
-                )
-
-            }
-
+            {deleteId && (
+                <Modal close={() => setDeleteId(null)}>
+                    <div className="delete-confirm-modal">
+                        <h3>Delete Category?</h3>
+                        <p>Are you sure you want to delete this category?</p>
+                        <div className="button-tray" style={{ justifyContent: "center" }}>
+                            <button type="button" className="cancel-btn" onClick={() => setDeleteId(null)}>
+                                Cancel
+                            </button>
+                            <button type="button" className="submit-btn" style={{ backgroundColor: "#ef4444" }} onClick={handleDelete}>
+                                Yes, Delete
+                            </button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
         </div>
 
     );
