@@ -17,6 +17,9 @@ export const transactionApi = {
     // Sửa transaction
     update: (id, data) => api.put(`/transactions/${id}`, data),
 
+    getEditHistory: (id) =>
+        api.get(`/transactions/${id}/edit-history`),
+
     // Xóa transaction
     delete: (id) => api.delete(`/transactions/${id}`),
 

@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { budgetApi } from '../../api/budgetApi';
 import { transactionApi } from '../../api/transactionApi';
+import RemainingMoneyModal from './RemainingMoneyModal';
+import { remainingActionApi } from '../../api/remainingActionApi';
 import BudgetForm from './BudgetForm';
 import './Budgets.css';
+
 
 const BudgetList = () => {
     const [budgets, setBudgets] = useState([]);
@@ -15,6 +18,24 @@ const BudgetList = () => {
     const [selectedJar, setSelectedJar] = useState(null);
     const [summary, setSummary] = useState({ totalBudget: 0, totalSpent: 0, totalRemaining: 0 });
     const [totalIncome, setTotalIncome] = useState(0);
+    const [remainingSummary, setRemainingSummary] = useState({
+        totalIncome: 0,
+        totalExpense: 0,
+        monthlyRemaining: 0,
+        carriedIn: 0,
+        totalAvailableBeforeProcessing: 0,
+        processedAmount: 0,
+        availableRemaining: 0,
+        hasRemaining: false
+    });
+    const distributableAmount =
+        Number(totalIncome || 0) +
+        Number(remainingSummary.carriedIn || 0);
+    const [showRemainingModal, setShowRemainingModal] =
+        useState(false);
+
+    const [remainingHistory, setRemainingHistory] =
+        useState([]);
     const [showDistribute, setShowDistribute] = useState(false);
     const [refresh, setRefresh] = useState(false);
     const [showJarHistory, setShowJarHistory] = useState(false);
@@ -37,26 +58,91 @@ const BudgetList = () => {
 
     const loadData = useCallback(async () => {
         setLoading(true);
+
         try {
-            const [budgetsRes, incomeRes] = await Promise.all([
-                budgetApi.getMonthlyBudgets(month, year),
-                transactionApi.getTotalIncome(month, year)
+            const [
+                budgetsRes,
+                incomeRes,
+                remainingRes,
+                remainingHistoryRes
+            ] = await Promise.all([
+                budgetApi.getMonthlyBudgets(
+                    month,
+                    year
+                ),
+
+                transactionApi.getTotalIncome(
+                    month,
+                    year
+                ),
+
+                remainingActionApi.getSummary(
+                    month,
+                    year
+                ),
+
+                remainingActionApi.getActions(
+                    month,
+                    year
+                )
             ]);
 
-            setBudgets(budgetsRes.data);
-            setTotalIncome(incomeRes.data.total || 0);
+            const budgetData =
+                budgetsRes.data || [];
 
-            const totalBudget = budgetsRes.data.reduce((sum, b) => sum + (b.budgetAmount || 0), 0);
-            const totalSpent = budgetsRes.data.reduce((sum, b) => sum + (b.spent || 0), 0);
-            setSummary({ totalBudget, totalSpent, totalRemaining: totalBudget - totalSpent });
+            setBudgets(budgetData);
+
+            setTotalIncome(
+                incomeRes.data.total || 0
+            );
+
+            setRemainingSummary(
+                remainingRes.data || {
+                    totalIncome: 0,
+                    totalExpense: 0,
+                    monthlyRemaining: 0,
+                    processedAmount: 0,
+                    availableRemaining: 0,
+                    hasRemaining: false
+                }
+            );
+
+            setRemainingHistory(
+                remainingHistoryRes.data || []
+            );
+
+            const totalBudget =
+                budgetData.reduce(
+                    (sum, b) =>
+                        sum +
+                        (b.budgetAmount || 0),
+                    0
+                );
+
+            const totalSpent =
+                budgetData.reduce(
+                    (sum, b) =>
+                        sum +
+                        (b.spent || 0),
+                    0
+                );
+
+            setSummary({
+                totalBudget,
+                totalSpent,
+                totalRemaining:
+                    totalBudget - totalSpent
+            });
+
         } catch (error) {
-            console.error('Error loading data:', error);
+            console.error(
+                'Error loading budget data:',
+                error
+            );
         } finally {
             setLoading(false);
         }
-    }, [month, year]);
-
-    const refreshData = useCallback(() => {
+    }, [month, year]);    const refreshData = useCallback(() => {
         setRefresh(prev => !prev);
     }, []);
 
@@ -71,7 +157,7 @@ const BudgetList = () => {
     }, [loadData, year, refresh]);
 
     const distributeBudget = async () => {
-        if (totalIncome <= 0) {
+        if (distributableAmount <= 0) {
             alert('No income this month!');
             return;
         }
@@ -80,7 +166,7 @@ const BudgetList = () => {
         for (const jar of budgets) {
             const percentage = jar.defaultPercentage || 0;
             if (percentage > 0) {
-                const amount = totalIncome * (percentage / 100);
+                const amount = distributableAmount * (percentage / 100);
                 if (amount > 0) {
                     try {
                         await budgetApi.create({
@@ -175,11 +261,34 @@ const BudgetList = () => {
             </div>
 
             <div className="income-summary">
-                <h3>💰 TOTAL INCOME - Month {month}/{year}</h3>
-                <p className="amount">{formatMoney(totalIncome)}</p>
-                {totalIncome > 0 && (
-                    <button onClick={() => setShowDistribute(true)} className="btn-distribute">
-                        ✨ AUTO DISTRIBUTE TO 6 JARS
+                <h3>TOTAL INCOME - Month {month}/{year}</h3>
+
+                <p className="amount">
+                    {formatMoney(totalIncome)}
+                </p>
+
+                {remainingSummary.carriedIn > 0 && (
+                    <p>
+                        Carried from previous month:
+                        <strong>
+                            {formatMoney(remainingSummary.carriedIn)}
+                        </strong>
+                    </p>
+                )}
+
+                <p>
+                    Total available for budgeting:
+                    <strong>
+                        {formatMoney(distributableAmount)}
+                    </strong>
+                </p>
+
+                {distributableAmount > 0 && (
+                    <button
+                        onClick={() => setShowDistribute(true)}
+                        className="btn-distribute"
+                    >
+                        AUTO DISTRIBUTE TO 6 JARS
                     </button>
                 )}
             </div>
@@ -188,11 +297,25 @@ const BudgetList = () => {
                 <div className="modal-overlay" onClick={() => setShowDistribute(false)}>
                     <div className="modal-content" onClick={e => e.stopPropagation()}>
                         <h3>💰 Confirm Budget Distribution</h3>
-                        <p>Income: <strong>{formatMoney(totalIncome)}</strong></p>
+                        <p>
+                            New income: <strong>{formatMoney(totalIncome)}</strong>
+                        </p>
+
+                        <p>
+                            Carried from previous month:
+                            <strong>
+                                {formatMoney(remainingSummary.carriedIn)}
+                            </strong>
+                        </p>
+
+                        <p>
+                            Total to distribute:
+                            <strong>{formatMoney(distributableAmount)}</strong>
+                        </p>
 
                         <div className="distribution-list">
                             {budgets.map(jar => {
-                                const amount = totalIncome * (jar.defaultPercentage / 100);
+                                const amount = distributableAmount * (jar.defaultPercentage / 100);
                                 return (
                                     <div key={jar.jarId} className="distribution-row">
                                         <span>{jar.jarName} ({jar.defaultPercentage}%)</span>
@@ -229,6 +352,147 @@ const BudgetList = () => {
                 </div>
             </div>
 
+            <div className="remaining-section">
+
+                <div className="remaining-section-header">
+                    <div>
+                        <h3>Monthly balance</h3>
+
+                        <p>
+                            Actual income and expenses
+                            for {month}/{year}
+                        </p>
+                    </div>
+
+                    {remainingSummary.availableRemaining > 0 && (
+                        <button
+                            type="button"
+                            className="btn-manage-remaining"
+                            onClick={() =>
+                                setShowRemainingModal(true)
+                            }
+                        >
+                            Manage remaining
+                        </button>
+                    )}
+                </div>
+
+                <div className="remaining-overview">
+                    {remainingSummary.carriedIn > 0 && (
+                        <div className="remaining-stat carried-in">
+                            <span>Carried from previous month</span>
+                            <strong>
+                                {formatMoney(remainingSummary.carriedIn)}
+                            </strong>
+                        </div>
+                    )}
+
+                    <div className="remaining-stat">
+                        <span>Income</span>
+
+                        <strong>
+                            {formatMoney(
+                                remainingSummary.totalIncome
+                            )}
+                        </strong>
+                    </div>
+
+                    <div className="remaining-stat">
+                        <span>Expenses</span>
+
+                        <strong>
+                            {formatMoney(
+                                remainingSummary.totalExpense
+                            )}
+                        </strong>
+                    </div>
+
+                    <div className="remaining-stat">
+                        <span>Monthly balance</span>
+
+                        <strong
+                            className={
+                                remainingSummary
+                                    .monthlyRemaining >= 0
+                                    ? 'positive'
+                                    : 'negative'
+                            }
+                        >
+                            {formatMoney(
+                                remainingSummary
+                                    .monthlyRemaining
+                            )}
+                        </strong>
+                    </div>
+
+                    <div className="remaining-stat">
+                        <span>Already managed</span>
+
+                        <strong>
+                            {formatMoney(
+                                remainingSummary
+                                    .processedAmount
+                            )}
+                        </strong>
+                    </div>
+
+                    <div className="remaining-stat highlight">
+                        <span>Available to manage</span>
+
+                        <strong>
+                            {formatMoney(
+                                remainingSummary
+                                    .availableRemaining
+                            )}
+                        </strong>
+                    </div>
+
+                </div>
+
+                {remainingHistory.length > 0 && (
+                    <div className="remaining-history">
+
+                        <div className="remaining-history-title">
+                            Allocation history
+                        </div>
+
+                        {remainingHistory.map(item => (
+                            <div
+                                className="remaining-history-row"
+                                key={item.id}
+                            >
+                                <div>
+                                    <strong>
+                                        {
+                                            item.actionType
+                                                .replaceAll(
+                                                    '_',
+                                                    ' '
+                                                )
+                                        }
+                                    </strong>
+
+                                    <span>
+                            {new Date(
+                                item.createdAt
+                            ).toLocaleString(
+                                'vi-VN'
+                            )}
+                        </span>
+                                </div>
+
+                                <strong>
+                                    {formatMoney(
+                                        item.amount
+                                    )}
+                                </strong>
+                            </div>
+                        ))}
+
+                    </div>
+                )}
+
+            </div>
             <div className="jars-grid">
                 {budgets.map((jar) => (
                     <div key={jar.jarId} className={`jar-card ${jar.isOverBudget ? 'over-budget' : ''}`}>
@@ -376,6 +640,32 @@ const BudgetList = () => {
 
                 )
             }
+            {showRemainingModal && (
+                <RemainingMoneyModal
+                    month={month}
+                    year={year}
+
+                    availableAmount={
+                        remainingSummary
+                            .availableRemaining
+                    }
+
+                    jars={budgets}
+
+                    goals={[]}
+                    debts={[]}
+                    investments={[]}
+
+                    onClose={() =>
+                        setShowRemainingModal(false)
+                    }
+
+                    onSuccess={() => {
+                        setShowRemainingModal(false);
+                        refreshData();
+                    }}
+                />
+            )}
         </div>
     );
 };

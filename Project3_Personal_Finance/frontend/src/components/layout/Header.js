@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import api from '../../api/api';
 import Modal from '../modal/Modal';
+import NotificationBell from './NotificationBell';
 
 export default function Header({ toggleSidebar }) {
   const navigate = useNavigate();
@@ -76,6 +77,8 @@ export default function Header({ toggleSidebar }) {
         </div>
 
         <div className="d-flex align-items-center">
+          <NotificationBell />
+
           <div 
             className="d-flex align-items-center me-4" 
             onClick={handleOpenProfile}
@@ -84,6 +87,7 @@ export default function Header({ toggleSidebar }) {
             onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
             title="Click to view/edit profile"
           >
+
             <img src={avatarUrl} alt="Avatar" className="me-2 shadow-sm" style={{ width: '36px', height: '36px', borderRadius: '50%' }} />
             <span className="fw-medium text-dark d-none d-md-inline">{userName} ⚙️</span>
           </div>

@@ -500,3 +500,76 @@
         gap: 4px;
     }
 }
+.transaction-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: 10px;
+}
+
+.action-btn {
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #fff;
+
+    color: #64748b;
+    cursor: pointer;
+    transition: 0.15s ease;
+}
+
+.action-btn:hover {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #0f172a;
+}
+
+.action-btn i {
+    font-size: 14px;
+}
+.edit-history {
+    width: 100%;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid #edf0f3;
+}
+
+.history-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+
+    font-size: 13px;
+    font-weight: 600;
+    color: #334155;
+}
+
+.history-count {
+    font-size: 12px;
+    font-weight: 400;
+    color: #94a3b8;
+}
+
+.history-item {
+    padding: 10px 12px;
+    margin-bottom: 8px;
+
+    background: #f8fafc;
+    border-radius: 8px;
+
+    font-size: 13px;
+    color: #475569;
+}
+
+.history-item small {
+    display: block;
+    margin-top: 6px;
+    color: #94a3b8;
+    font-size: 11px;
+}

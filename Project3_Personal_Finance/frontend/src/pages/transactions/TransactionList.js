@@ -3,34 +3,54 @@ import { transactionApi } from '../../api/transactionApi';
 import TransactionForm from './TransactionForm';
 import './Transactions.css';
 
-const TransactionList = () => { 
+const TransactionList = () => {
     const [transactions, setTransactions] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState('');
     const [showForm, setShowForm] = useState(false);
     const [transactionToEdit, setTransactionToEdit] = useState(null);
+
+    const [historyTransactionId, setHistoryTransactionId] = useState(null);
+    const [editHistory, setEditHistory] = useState([]);
+    const [loadingHistory, setLoadingHistory] = useState(false);
+
     const [refresh, setRefresh] = useState(false);
+
     const [filter, setFilter] = useState({
         month: 'all',
         year: 'all',
         type: 'all'
     });
+
     const [availableYears, setAvailableYears] = useState([]);
     const [loadingYears, setLoadingYears] = useState(true);
+
+    // ==================== LOAD YEARS ====================
 
     const loadAvailableYears = useCallback(async () => {
         try {
             setLoadingYears(true);
+
             const response = await transactionApi.getAvailableYears();
-            setAvailableYears(response.data.sort((a, b) => b - a));
+
+            setAvailableYears(
+                (response.data || []).sort((a, b) => b - a)
+            );
         } catch (error) {
             console.error('Error loading years:', error);
+
             const currentYear = new Date().getFullYear();
-            setAvailableYears([currentYear, currentYear - 1, currentYear - 2]);
+
+            setAvailableYears([
+                currentYear,
+                currentYear - 1,
+                currentYear - 2
+            ]);
         } finally {
             setLoadingYears(false);
         }
     }, []);
+
+    // ==================== LOAD TRANSACTIONS ====================
 
     const loadTransactions = useCallback(async () => {
         try {
@@ -48,8 +68,8 @@ const TransactionList = () => {
             }
 
             setTransactions(response.data || []);
-        } catch (err) {
-            console.error('Error loading transactions:', err);
+        } catch (error) {
+            console.error('Error loading transactions:', error);
             setTransactions([]);
         } finally {
             setLoading(false);
@@ -63,64 +83,100 @@ const TransactionList = () => {
     useEffect(() => {
         loadTransactions();
     }, [loadTransactions, refresh]);
+
+    // ==================== EDIT ====================
+
     const handleEdit = (transaction) => {
         setTransactionToEdit(transaction);
         setShowForm(true);
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this transaction?')) {
+    const handleSuccess = () => {
+        setShowForm(false);
+        setTransactionToEdit(null);
+
+        // Đóng history cũ sau khi transaction thay đổi
+        setHistoryTransactionId(null);
+        setEditHistory([]);
+
+        setRefresh(prev => !prev);
+    };
+
+    const handleCancel = () => {
+        setShowForm(false);
+        setTransactionToEdit(null);
+    };
+
+    // ==================== HISTORY ====================
+
+    const handleViewHistory = async (transactionId) => {
+        // Bấm lại transaction đang mở -> đóng
+        if (historyTransactionId === transactionId) {
+            setHistoryTransactionId(null);
+            setEditHistory([]);
             return;
         }
 
         try {
-            await transactionApi.delete(id);
+            setLoadingHistory(true);
 
-            setRefresh(prev => !prev);
-            loadAvailableYears();
-        } catch (err) {
-            const message =
-                err.response?.data?.message ||
-                'Delete failed';
+            const response =
+                await transactionApi.getEditHistory(transactionId);
 
-            alert(message);
+            setEditHistory(response.data || []);
+            setHistoryTransactionId(transactionId);
+        } catch (error) {
+            console.error('Error loading edit history:', error);
+
+            alert(
+                error.response?.data?.message ||
+                'Cannot load edit history'
+            );
+        } finally {
+            setLoadingHistory(false);
         }
     };
 
-    const handleSuccess = () => {
-        setShowForm(false);
-        setTransactionToEdit(null);
-        setRefresh(prev => !prev);
-    };
+    // ==================== FILTER ====================
 
     const handleMonthChange = (e) => {
         const value = e.target.value;
 
-        setFilter({
-            ...filter,
-            month: value === 'all' ? 'all' : parseInt(value)
-        });
+        setFilter(prev => ({
+            ...prev,
+            month: value === 'all'
+                ? 'all'
+                : parseInt(value, 10)
+        }));
     };
 
     const handleYearChange = (e) => {
         const value = e.target.value;
 
-        setFilter({
-            ...filter,
-            year: value === 'all' ? 'all' : parseInt(value)
-        });
+        setFilter(prev => ({
+            ...prev,
+            year: value === 'all'
+                ? 'all'
+                : parseInt(value, 10)
+        }));
     };
 
     const handleTypeChange = (e) => {
-        setFilter({ ...filter, type: e.target.value });
+        setFilter(prev => ({
+            ...prev,
+            type: e.target.value
+        }));
     };
 
+    // ==================== FORMAT ====================
 
     const formatMoney = (amount) => {
-        return new Intl.NumberFormat('vi-VN').format(amount) + 'đ';
+        return new Intl.NumberFormat('vi-VN').format(amount || 0) + 'đ';
     };
 
     const formatDate = (dateString) => {
+        if (!dateString) return '';
+
         return new Date(dateString).toLocaleDateString('vi-VN');
     };
 
@@ -133,41 +189,64 @@ const TransactionList = () => {
             'Tự do tài chính': '#f44336',
             'Cho đi': '#00bcd4'
         };
-        return colors[jarName] || '#999';
+
+        return colors[jarName] || '#64748b';
     };
 
-    const getJarIcon = (jarName) => {
-        const icons = {
-            'Chi tiêu cần thiết': '🛒',
-            'Giáo dục': '📚',
-            'Tiết kiệm dài hạn': '💰',
-            'Hưởng thụ': '🎮',
-            'Tự do tài chính': '📈',
-            'Cho đi': '🎁'
-        };
-        return icons[jarName] || '📦';
-    };
-    const filteredTransactions = filter.type === 'all'
-        ? transactions
-        : transactions.filter(t => t.type === filter.type);
+    // ==================== DATA ====================
+
+    const filteredTransactions =
+        filter.type === 'all'
+            ? transactions
+            : transactions.filter(
+                transaction => transaction.type === filter.type
+            );
+
+    /*
+        Transaction mới nhất = ID lớn nhất.
+
+        Không dùng TransactionDate vì người dùng có thể
+        tạo transaction hôm nay nhưng chọn ngày giao dịch cũ.
+    */
+    const latestTransactionId =
+        transactions.length > 0
+            ? Math.max(...transactions.map(transaction => transaction.id))
+            : null;
 
     const incomeTotal = filteredTransactions
-        .filter(t => t.type === 'Income')
-        .reduce((sum, t) => sum + t.amount, 0);
+        .filter(transaction => transaction.type === 'Income')
+        .reduce((sum, transaction) => sum + transaction.amount, 0);
 
     const expenseTotal = filteredTransactions
-        .filter(t => t.type === 'Expense')
-        .reduce((sum, t) => sum + t.amount, 0);
+        .filter(transaction => transaction.type === 'Expense')
+        .reduce((sum, transaction) => sum + transaction.amount, 0);
 
     const balance = incomeTotal - expenseTotal;
 
-    if (loading) return <div className="loading">⏳ Loading...</div>;
+    // ==================== LOADING ====================
 
+    if (loading) {
+        return (
+            <div className="transactions-loading">
+                Loading transactions...
+            </div>
+        );
+    }
+
+    // ==================== UI ====================
 
     return (
         <div className="transaction-list-container">
+
+            {/* HEADER */}
             <div className="transaction-header">
-                <h3>📋 Transaction History</h3>
+                <div>
+                    <h2>Transactions</h2>
+                    <p>
+                        View and manage your income and expenses
+                    </p>
+                </div>
+
                 <button
                     className="btn-new-transaction"
                     onClick={() => {
@@ -175,20 +254,30 @@ const TransactionList = () => {
                         setShowForm(true);
                     }}
                 >
-                    ➕ New Transaction
+                    <i className="bi bi-plus-lg"></i>
+                    <span>New transaction</span>
                 </button>
             </div>
 
+            {/* FILTERS */}
             <div className="filters-section">
                 <div className="filters">
-                    <select value={filter.month} onChange={handleMonthChange}>
-                        <option value="all">All Months</option>
 
-                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => (
-                            <option key={m} value={m}>
-                                Month {m}
-                            </option>
-                        ))}
+                    <select
+                        value={filter.month}
+                        onChange={handleMonthChange}
+                    >
+                        <option value="all">All months</option>
+
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+                            .map(month => (
+                                <option
+                                    key={month}
+                                    value={month}
+                                >
+                                    Month {month}
+                                </option>
+                            ))}
                     </select>
 
                     <select
@@ -196,116 +285,374 @@ const TransactionList = () => {
                         onChange={handleYearChange}
                         disabled={loadingYears}
                     >
-                        <option value="all">All Years</option>
+                        <option value="all">All years</option>
 
                         {availableYears.map(year => (
-                            <option key={year} value={year}>
+                            <option
+                                key={year}
+                                value={year}
+                            >
                                 {year}
                             </option>
                         ))}
                     </select>
 
-                    <select value={filter.type} onChange={handleTypeChange}>
-                        <option value="all">📊 All</option>
-                        <option value="Income">💰 Income</option>
-                        <option value="Expense">💸 Expense</option>
+                    <select
+                        value={filter.type}
+                        onChange={handleTypeChange}
+                    >
+                        <option value="all">
+                            All transactions
+                        </option>
+
+                        <option value="Income">
+                            Income
+                        </option>
+
+                        <option value="Expense">
+                            Expense
+                        </option>
                     </select>
+
                 </div>
             </div>
 
+            {/* FORM */}
             {showForm && (
                 <TransactionForm
                     transactionToEdit={transactionToEdit}
                     onSuccess={handleSuccess}
-                    onCancel={() => {
-                        setShowForm(false);
-                        setTransactionToEdit(null);
-                    }}
+                    onCancel={handleCancel}
                 />
             )}
 
+            {/* EMPTY */}
             {filteredTransactions.length === 0 ? (
                 <div className="empty-state">
-                    <div className="empty-icon">📭</div>
                     <h3>No transactions yet</h3>
-                    <p>Click "New Transaction" to add your first income or expense</p>
-                    <button className="btn-new-transaction" onClick={() => setShowForm(true)}>
-                        ➕ Add your first transaction
+
+                    <p>
+                        Add your first transaction to start tracking
+                        your finances.
+                    </p>
+
+                    <button
+                        className="btn-new-transaction"
+                        onClick={() => {
+                            setTransactionToEdit(null);
+                            setShowForm(true);
+                        }}
+                    >
+                        <i className="bi bi-plus-lg"></i>
+                        <span>Add transaction</span>
                     </button>
                 </div>
             ) : (
                 <>
-                        <div className="transaction-list">
-                            {filteredTransactions.map(transaction => (
-                                <div key={transaction.id} className={`transaction-item ${transaction.type.toLowerCase()}`}>
-                                    <div className="transaction-info">
-                                        <div className="transaction-category">
-                                            <strong>{transaction.categoryName}</strong>
+                    {/* TRANSACTION LIST */}
+                    <div className="transaction-list">
+
+                        {filteredTransactions.map(transaction => (
+                            <div
+                                key={transaction.id}
+                                className={`transaction-item ${transaction.type.toLowerCase()}`}
+                            >
+                                {/* LEFT */}
+                                <div className="transaction-info">
+
+                                    <div className="transaction-category">
+
+                                        <strong>
+                                            {transaction.categoryName}
+                                        </strong>
+
+                                        {transaction.jarName && (
                                             <span
                                                 className="transaction-jar"
                                                 style={{
-                                                    backgroundColor: getJarColor(transaction.jarName),
-                                                    color: 'white'
+                                                    borderColor:
+                                                        getJarColor(transaction.jarName),
+                                                    color:
+                                                        getJarColor(transaction.jarName)
                                                 }}
                                             >
-                                                {getJarIcon(transaction.jarName)} {transaction.jarName}
+                                                {transaction.jarName}
                                             </span>
-                                        </div>
-                                        <div className="transaction-date">{formatDate(transaction.transactionDate)}</div>
-                                        {transaction.note && <div className="transaction-note">📝 {transaction.note}</div>}
+                                        )}
+
                                     </div>
 
-                                    <div className="transaction-amount">
-                                        <span className={transaction.type.toLowerCase()}>
-                                                        {transaction.type === 'Income' ? '+' : '-'} {formatMoney(transaction.amount)}
+                                    <div className="transaction-meta">
+
+                                        <span>
+                                            {formatDate(
+                                                transaction.transactionDate
+                                            )}
                                         </span>
-                                        <button
-                                            onClick={() => handleEdit(transaction)}
-                                            className="btn-edit"
-                                            title="Edit"
-                                        >
-                                            ✏️
-                                        </button>
 
-                                        <button
-                                            onClick={() => handleDelete(transaction.id)}
-                                            className="btn-delete"
-                                            title="Delete"
-                                        >
-                                            🗑️
-                                        </button>
+                                        {transaction.note && (
+                                            <>
+                                                <span className="meta-separator">
+                                                    ·
+                                                </span>
+
+                                                <span className="transaction-note">
+                                                    {transaction.note}
+                                                </span>
+                                            </>
+                                        )}
+
                                     </div>
+
                                 </div>
-                            ))}
+
+                                {/* RIGHT */}
+                                <div className="transaction-right">
+
+                                    <div
+                                        className={`transaction-value ${transaction.type.toLowerCase()}`}
+                                    >
+                                        {transaction.type === 'Income'
+                                            ? '+'
+                                            : '-'}
+                                        {formatMoney(transaction.amount)}
+                                    </div>
+
+                                    <div className="transaction-actions">
+
+                                        {/* History available for every transaction */}
+                                        <button
+                                            type="button"
+                                            className={`action-btn ${
+                                                historyTransactionId === transaction.id
+                                                    ? 'active'
+                                                    : ''
+                                            }`}
+                                            onClick={() =>
+                                                handleViewHistory(transaction.id)
+                                            }
+                                            title="View edit history"
+                                        >
+                                            <i className="bi bi-clock-history"></i>
+                                        </button>
+
+                                        {/* Only latest transaction can be edited */}
+                                        {transaction.id === latestTransactionId && (
+                                            <button
+                                                type="button"
+                                                className="action-btn"
+                                                onClick={() =>
+                                                    handleEdit(transaction)
+                                                }
+                                                title="Edit transaction"
+                                            >
+                                                <i className="bi bi-pencil"></i>
+                                            </button>
+                                        )}
+
+                                    </div>
+
+                                </div>
+
+                                {/* EDIT HISTORY */}
+                                {historyTransactionId === transaction.id && (
+                                    <div className="edit-history">
+
+                                        <div className="history-header">
+                                            <span>Edit history</span>
+
+                                            {!loadingHistory && (
+                                                <span className="history-count">
+                                                    {editHistory.length}{' '}
+                                                    {editHistory.length === 1
+                                                        ? 'change'
+                                                        : 'changes'}
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {loadingHistory ? (
+                                            <div className="history-empty">
+                                                Loading history...
+                                            </div>
+                                        ) : editHistory.length === 0 ? (
+                                            <div className="history-empty">
+                                                This transaction has not been edited.
+                                            </div>
+                                        ) : (
+                                            <div className="history-list">
+
+                                                {editHistory.map(history => (
+                                                    <div
+                                                        key={history.id}
+                                                        className="history-item"
+                                                    >
+                                                        <div className="history-change">
+
+                                                            <span className="history-label">
+                                                                Amount
+                                                            </span>
+
+                                                            <span className="history-old">
+                                                                {formatMoney(
+                                                                    history.oldAmount
+                                                                )}
+                                                            </span>
+
+                                                            <i className="bi bi-arrow-right"></i>
+
+                                                            <span className="history-new">
+                                                                {formatMoney(
+                                                                    history.newAmount
+                                                                )}
+                                                            </span>
+
+                                                        </div>
+
+                                                        {history.oldType !==
+                                                            history.newType && (
+                                                                <div className="history-change">
+
+                                                                <span className="history-label">
+                                                                    Type
+                                                                </span>
+
+                                                                    <span className="history-old">
+                                                                    {history.oldType}
+                                                                </span>
+
+                                                                    <i className="bi bi-arrow-right"></i>
+
+                                                                    <span className="history-new">
+                                                                    {history.newType}
+                                                                </span>
+
+                                                                </div>
+                                                            )}
+
+                                                        {history.oldNote !==
+                                                            history.newNote && (
+                                                                <div className="history-change">
+
+                                                                <span className="history-label">
+                                                                    Note
+                                                                </span>
+
+                                                                    <span className="history-old">
+                                                                    {history.oldNote || 'Empty'}
+                                                                </span>
+
+                                                                    <i className="bi bi-arrow-right"></i>
+
+                                                                    <span className="history-new">
+                                                                    {history.newNote || 'Empty'}
+                                                                </span>
+
+                                                                </div>
+                                                            )}
+
+                                                        {history.oldTransactionDate !==
+                                                            history.newTransactionDate && (
+                                                                <div className="history-change">
+
+                                                                <span className="history-label">
+                                                                    Date
+                                                                </span>
+
+                                                                    <span className="history-old">
+                                                                    {formatDate(
+                                                                        history.oldTransactionDate
+                                                                    )}
+                                                                </span>
+
+                                                                    <i className="bi bi-arrow-right"></i>
+
+                                                                    <span className="history-new">
+                                                                    {formatDate(
+                                                                        history.newTransactionDate
+                                                                    )}
+                                                                </span>
+
+                                                                </div>
+                                                            )}
+
+                                                        <div className="history-time">
+                                                            {new Date(
+                                                                history.editedAt
+                                                            ).toLocaleString('vi-VN')}
+                                                        </div>
+
+                                                    </div>
+                                                ))}
+
+                                            </div>
+                                        )}
+
+                                    </div>
+                                )}
+
+                            </div>
+                        ))}
+
+                    </div>
+
+                    {/* SUMMARY */}
+                    <div className="transaction-summary">
+
+                        <div className="summary-header">
+                            <h3>Summary</h3>
+
+                            <span>
+                                {filter.month === 'all'
+                                    ? 'All months'
+                                    : `Month ${filter.month}`}
+                                {' · '}
+                                {filter.year === 'all'
+                                    ? 'All years'
+                                    : filter.year}
+                            </span>
                         </div>
 
-                    <div className="transaction-summary">
-                        <h4>📊 Summary - Month {filter.month}/{filter.year}</h4>
-                        <div className="summary-row">
-                            <span>Total Income:</span>
-                            <strong className="income">+ {formatMoney(incomeTotal)}</strong>
+                        <div className="summary-grid">
+
+                            <div className="summary-item">
+                                <span>Income</span>
+
+                                <strong className="income">
+                                    +{formatMoney(incomeTotal)}
+                                </strong>
+                            </div>
+
+                            <div className="summary-item">
+                                <span>Expenses</span>
+
+                                <strong className="expense">
+                                    -{formatMoney(expenseTotal)}
+                                </strong>
+                            </div>
+
+                            <div className="summary-item">
+                                <span>Remaining</span>
+
+                                <strong
+                                    className={
+                                        balance >= 0
+                                            ? 'income'
+                                            : 'expense'
+                                    }
+                                >
+                                    {formatMoney(balance)}
+                                </strong>
+                            </div>
+
                         </div>
-                        <div className="summary-row">
-                            <span>Total Expense:</span>
-                            <strong className="expense">- {formatMoney(expenseTotal)}</strong>
-                        </div>
-                        <div className="summary-row total">
-                            <span>Remaining:</span>
-                            <strong className={balance >= 0 ? 'income' : 'expense'}>
-                                {formatMoney(balance)}
-                            </strong>
-                        </div>
+
                     </div>
                 </>
             )}
+
         </div>
     );
 };
 
 export default TransactionList;
-
-
-
-
-
-

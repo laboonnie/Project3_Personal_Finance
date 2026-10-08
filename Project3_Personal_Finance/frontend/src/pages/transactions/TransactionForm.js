@@ -145,17 +145,6 @@ const TransactionForm = ({
                         >
                              Expense
                         </button>
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="btn-submit"
-                        >
-                            {loading
-                                ? 'Processing...'
-                                : transactionToEdit
-                                    ? 'Update Transaction'
-                                    : 'Save Transaction'}
-                        </button>
                     </div>
                 </div>
 
@@ -217,8 +206,16 @@ const TransactionForm = ({
                 </div>
 
                 <div className="form-actions">
-                    <button type="submit" disabled={loading} className="btn-submit">
-                        {loading ? 'Processing...' : ' Save Transaction'}
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        className="btn-submit"
+                    >
+                        {loading
+                            ? 'Processing...'
+                            : transactionToEdit
+                                ? 'Update Transaction'
+                                : 'Save Transaction'}
                     </button>
                     {onCancel && (
                         <button type="button" onClick={onCancel} className="btn-cancel">
