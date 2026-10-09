@@ -60,6 +60,7 @@ export default function Header({ toggleSidebar }) {
     if (window.confirm('Are you sure you want to logout?')) {
       localStorage.removeItem('token');
       localStorage.removeItem('userName');
+      sessionStorage.removeItem('dueAlertShownFor');
       toast.info('You have been logged out.');
       navigate('/login');
     }

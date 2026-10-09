@@ -2,6 +2,7 @@ import { useState } from "react";
 import Sidebar from "../components/layout/Sidebar";
 import Header from "../components/layout/Header";
 import { Outlet } from "react-router-dom";
+import DueAlertPopup from "../pages/PopUp/DueAlertPopup";
 
 export default function MainLayout({ children }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -9,6 +10,7 @@ export default function MainLayout({ children }) {
     <div className="d-flex">
 
       <Sidebar collapsed={collapsed} />
+      <DueAlertPopup />
 
       <div className="flex-grow-1">
 
