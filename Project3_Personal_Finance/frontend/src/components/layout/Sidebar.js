@@ -1,8 +1,8 @@
 import { Link, useLocation } from "react-router-dom";
 import AiAdvisor from "../AiAdvisor/AiAdvisor";
+import "./layout.css"; // Dùng chung file CSS với Admin Sidebar
 
 export default function Sidebar({ collapsed }) {
-
   const location = useLocation();
 
   const menu = [
@@ -16,47 +16,48 @@ export default function Sidebar({ collapsed }) {
 
   return (
     <div
-      className="text-white p-3"
+      className="custom-sidebar"
       style={{
-        width: collapsed ? "70px" : "200px",
-        minHeight: "100vh",
-        backgroundColor: "#7c6ee6",
-        transition: "0.3s"
+        width: collapsed ? "80px" : "220px",
       }}
     >
-
-      <h5 className="text-center mb-4">
-
+      {/* Brand Title */}
+      <div className="sidebar-brand text-center">
         {collapsed ? "💰" : "💰 Finance App"}
+      </div>
 
-      </h5>
+      {/* Menu List */}
+      <div className="sidebar-menu">
+        {menu.map((item) => {
+          const isActive = location.pathname === item.path;
 
-      {
-        menu.map(item => (
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`nav-item-link ${isActive ? "active-menu" : ""}`}
+            >
+              {/* Nút tròn nổi cho Tab active */}
+              {isActive ? (
+                <div className="icon-wrapper">
+                  <i className={`bi ${item.icon}`} />
+                </div>
+              ) : (
+                <i className={`bi ${item.icon}`} />
+              )}
 
-          <Link
-            key={item.path}
-            to={item.path}
-            className={`d-flex align-items-center mb-3 text-decoration-none text-white p-2 rounded
-            ${location.pathname === item.path ? "active-menu" : ""}
-            `}
-          >
+              {!collapsed && (
+                <span className="ms-2">{item.name}</span>
+              )}
+            </Link>
+          );
+        })}
+      </div>
 
-            <i className={`bi ${item.icon}`} />
-
-            {
-              !collapsed &&
-              <span className="ms-2">
-                {item.name}
-              </span>
-            }
-
-          </Link>
-
-        ))
-      }
-
-      <AiAdvisor />
+      {/* AI Advisor Component đặt ở cuối */}
+      <div className="mt-auto pt-3 pe-2">
+        <AiAdvisor collapsed={collapsed} />
+      </div>
     </div>
   );
 }
