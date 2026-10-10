@@ -58,6 +58,7 @@ const handleLogin = async (e) => {
         localStorage.setItem('token', response.data.token || response.data.Token);
         localStorage.setItem('userName', user?.name || user?.Name);
         localStorage.setItem('role', role);
+        sessionStorage.removeItem('dueAlertShownFor');
 
         toast.success(`Login successful! Role: ${role}`);
 

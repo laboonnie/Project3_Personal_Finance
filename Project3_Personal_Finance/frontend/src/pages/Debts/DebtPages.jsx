@@ -1,92 +1,132 @@
 ﻿import { useState, useEffect } from "react";
-import { debtApi } from "../../api/debtApi";
+import { authFetch, readJson, errorMessage, formatMoney, notifyDueAlertRefresh } from "../../api/authFetch";
 import "./DebtPage.css";
 
-const decodeBase64Url = (value) => {
-    const normalized = value.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = normalized + "=".repeat((4 - (normalized.length % 4)) % 4);
-    return atob(padded);
-};
+const jarDisabled = (jar) =>
+    !jar.hasCategory || jar.remaining === null || jar.remaining === undefined;
 
-const getCurrentUserId = () => {
-    try {
-        const token = localStorage.getItem("token");
-        if (!token) return null;
-
-        const parts = token.split(".");
-        if (parts.length < 2) return null;
-
-        const payload = JSON.parse(decodeBase64Url(parts[1]));
-        const rawUserId =
-            payload.nameid ||
-            payload.sub ||
-            payload.userId ||
-            payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"];
-
-        const parsedUserId = Number(rawUserId);
-        return Number.isInteger(parsedUserId) && parsedUserId > 0 ? parsedUserId : null;
-    } catch {
-        return null;
-    }
+const jarLabel = (jar) => {
+    if (!jar.hasCategory) return `${jar.jarName} (no category)`;
+    if (jar.remaining === null || jar.remaining === undefined)
+        return `${jar.jarName} (no budget this month)`;
+    return `${jar.jarName} — ${formatMoney(jar.remaining)} left`;
 };
 
 export default function DebtPage() {
-    const userId = getCurrentUserId();
     const [debts, setDebts] = useState([]);
+    const [jars, setJars] = useState([]);
     const [showForm, setShowForm] = useState(false);
     const [showPayForm, setShowPayForm] = useState(null);
     const [form, setForm] = useState({
         debtName: "", totalAmount: "", interestRate: "", dueDate: ""
     });
     const [payAmount, setPayAmount] = useState("");
+    const [jarId, setJarId] = useState("");
+    const [submitting, setSubmitting] = useState(false);
 
-    useEffect(() => { loadDebts(); }, []);
+    useEffect(() => {
+        loadDebts();
+        loadJars();
+    }, []);
 
     const loadDebts = async () => {
-        if (!userId) {
+        try {
+            const res = await authFetch("/Debts");
+            const data = await readJson(res);
+            setDebts(res.ok && Array.isArray(data) ? data : []);
+        } catch {
             setDebts([]);
-            return;
         }
+    };
 
-        const data = await debtApi.getAll();
-        setDebts(data.filter(d => d.userId === userId));
+    const loadJars = async () => {
+        try {
+            const res = await authFetch("/FundingJars");
+            const data = await readJson(res);
+            setJars(res.ok && Array.isArray(data) ? data : []);
+        } catch {
+            setJars([]);
+        }
     };
 
     const handleCreate = async () => {
-        if (!userId) return alert("Unable to retrieve user information. Please log in again!");
-        if (!form.debtName || !form.totalAmount) return alert("Please fill in all required information!");
-        await debtApi.create({
-            userId,
-            debtName: form.debtName,
-            totalAmount: parseFloat(form.totalAmount),
-            interestRate: parseFloat(form.interestRate) || 0,
-            dueDate: form.dueDate
-        });
-        setForm({ debtName: "", totalAmount: "", interestRate: "", dueDate: "" });
-        setShowForm(false);
-        loadDebts();
+        if (!form.debtName.trim() || !form.totalAmount)
+            return alert("Please fill in all required information!");
+
+        setSubmitting(true);
+        try {
+            const res = await authFetch("/Debts", {
+                method: "POST",
+                body: JSON.stringify({
+                    debtName: form.debtName.trim(),
+                    totalAmount: parseFloat(form.totalAmount),
+                    interestRate: parseFloat(form.interestRate) || 0,
+                    dueDate: form.dueDate || null
+                })
+            });
+            const data = await readJson(res);
+            if (!res.ok) return alert(errorMessage(data, "Unable to create debt!"));
+
+            setForm({ debtName: "", totalAmount: "", interestRate: "", dueDate: "" });
+            setShowForm(false);
+            loadDebts();
+            const debtId = data?.id ?? data?.Id;
+            if (debtId != null) {
+                notifyDueAlertRefresh("Debt", debtId);
+            } else {
+                console.error("The new debt was saved without an ID; due alerts were not refreshed.");
+            }
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    const openPayForm = (debt) => {
+        if (showPayForm === debt.id) {
+            setShowPayForm(null);
+            return;
+        }
+        setShowPayForm(debt.id);
+        setPayAmount("");
+        // Preselect the last source jar when it is still available.
+        const last = jars.find(j => j.id === debt.jarId);
+        setJarId(last && !jarDisabled(last) ? String(last.id) : "");
+        loadJars();
+    };
+
+    // Fills the maximum payment allowed by both the remaining debt and jar balance.
+    const fillMax = (debt) => {
+        const remaining = Math.max(Number(debt.remainingAmount) || 0, 0);
+        const jar = jars.find(j => String(j.id) === jarId);
+        const cap = jar && jar.remaining !== null && jar.remaining !== undefined
+            ? Math.max(jar.remaining, 0)
+            : remaining;
+        setPayAmount(String(Math.floor(Math.min(remaining, cap))));
     };
 
     const handlePay = async (debt) => {
-        if (!payAmount) return alert("Please enter a payment amount!");
         const amount = parseFloat(payAmount);
+        if (!jarId) return alert("Please select a source jar!");
+        if (!amount || amount <= 0) return alert("Please enter a payment amount!");
         if (amount > debt.remainingAmount) return alert("Payment amount exceeds the remaining debt!");
 
-        const newRemaining = debt.remainingAmount - amount;
+        setSubmitting(true);
+        try {
+            const res = await authFetch(`/Debts/${debt.id}/pay`, {
+                method: "POST",
+                body: JSON.stringify({ jarId: Number(jarId), amount })
+            });
+            const data = await readJson(res);
+            if (!res.ok) return alert(errorMessage(data, "Payment failed!"));
 
-        await debtApi.update(debt.id, {
-            ...debt,
-            remainingAmount: newRemaining
-        });
-
-        setShowPayForm(null);
-        setPayAmount("");
-
-        setTimeout(() => loadDebts(), 200);
+            setShowPayForm(null);
+            setPayAmount("");
+            setJarId("");
+            await Promise.all([loadDebts(), loadJars()]);
+        } finally {
+            setSubmitting(false);
+        }
     };
-
-    const formatMoney = (amount) =>
-        Number(amount).toLocaleString("vi-VN") + " ₫";
 
     const calcPercent = (debt) => {
         const total = parseFloat(debt.totalAmount) || 0;
@@ -96,6 +136,12 @@ export default function DebtPage() {
     };
 
     const isDebtPaidOff = (debt) => Number(debt.remainingAmount) <= 0;
+
+    const getBadge = (debt) => {
+        if (isDebtPaidOff(debt)) return { cls: "paid-off", text: "✅ Paid off" };
+        if (debt.status === "overdue") return { cls: "locked", text: "⚠️ Overdue" };
+        return { cls: "active", text: "⏳ Outstanding" };
+    };
 
     return (
         <div className="debt-page-container">
@@ -146,7 +192,9 @@ export default function DebtPage() {
                     </div>
 
                     <div className="debt-actions">
-                        <button className="debt-btn-primary" onClick={handleCreate}>💾 Save</button>
+                        <button className="debt-btn-primary" disabled={submitting} onClick={handleCreate}>
+                            💾 Save
+                        </button>
                         <button className="debt-btn-secondary" onClick={() => setShowForm(false)}>Cancel</button>
                     </div>
                 </div>
@@ -154,91 +202,113 @@ export default function DebtPage() {
 
             {debts.length === 0 ? (
                 <div className="debt-empty">🎉 No debts yet!</div>
-            ) : debts.map(debt => (
-                <div key={debt.id} className="debt-card">
-                    <div className="debt-top">
-                        <div>
-                            <h3 className="debt-name">{debt.debtName}</h3>
-                            <span
-                                className={`debt-badge ${isDebtPaidOff(debt) ? "paid-off" : "active"}`}
-                            >
-                                {isDebtPaidOff(debt) ? "✅ Paid off" : "⏳ Outstanding"}
-                            </span>
+            ) : debts.map(debt => {
+                const badge = getBadge(debt);
+                return (
+                    <div key={debt.id} className={`debt-card ${debt.status === "overdue" ? "is-locked" : ""}`}>
+                        <div className="debt-top">
+                            <div>
+                                <h3 className="debt-name">{debt.debtName}</h3>
+                                <span className={`debt-badge ${badge.cls}`}>{badge.text}</span>
+                            </div>
+
+                            <div className="debt-actions-inline">
+                                {!isDebtPaidOff(debt) && (
+                                    <button
+                                        className="debt-btn-primary"
+                                        onClick={() => openPayForm(debt)}>
+                                        💸 Make payment
+                                    </button>
+                                )}
+                            </div>
                         </div>
 
-                        <div className="debt-actions-inline">
-                            {!isDebtPaidOff(debt) && (
-                                <button
-                                    className="debt-btn-primary"
-                                    onClick={() => setShowPayForm(showPayForm === debt.id ? null : debt.id)}>
-                                    💸 Make payment
-                                </button>
-                            )}
+                        {debt.warning && !isDebtPaidOff(debt) && (
+                            <div className={`debt-warning ${debt.status === "overdue" ? "overdue" : "soon"}`}>
+                                {debt.status === "overdue" ? "⚠️" : "⏰"} {debt.warning}
+                            </div>
+                        )}
+
+                        <div className="debt-grid-4">
+                            <div className="debt-info-box">
+                                <span className="debt-info-label">Total debt</span>
+                                <span className="debt-info-value">{formatMoney(debt.totalAmount)}</span>
+                            </div>
+
+                            <div className="debt-info-box">
+                                <span className="debt-info-label">Remaining</span>
+                                <span className="debt-info-value remaining">
+                                    {formatMoney(debt.remainingAmount)}
+                                </span>
+                            </div>
+
+                            <div className="debt-info-box">
+                                <span className="debt-info-label">Interest</span>
+                                <span className="debt-info-value">{debt.interestRate}%/year</span>
+                            </div>
+
+                            <div className="debt-info-box">
+                                <span className="debt-info-label">Due date</span>
+                                <span className="debt-info-value">
+                                    {debt.dueDate
+                                        ? new Date(`${debt.dueDate}T00:00:00`).toLocaleDateString("en-GB")
+                                        : "None"}
+                                </span>
+                            </div>
                         </div>
-                    </div>
 
-                    <div className="debt-grid-4">
-                        <div className="debt-info-box">
-                            <span className="debt-info-label">Total debt</span>
-                            <span className="debt-info-value">{formatMoney(debt.totalAmount)}</span>
+                        <div className="debt-progress-section">
+                            <div className="debt-progress-bar">
+                                <div className="debt-progress-fill" style={{ width: `${calcPercent(debt)}%` }} />
+                            </div>
+                            <span className="debt-progress-text">Paid: {calcPercent(debt)}%</span>
                         </div>
 
-                        <div className="debt-info-box">
-                            <span className="debt-info-label">Remaining</span>
-                            <span className="debt-info-value remaining">
-                                {formatMoney(debt.remainingAmount)}
-                            </span>
-                        </div>
+                        {showPayForm === debt.id && (
+                            <div className="debt-sub-card">
+                                <h4>💸 Make a payment</h4>
 
-                        <div className="debt-info-box">
-                            <span className="debt-info-label">Interest</span>
-                            <span className="debt-info-value">{debt.interestRate}%/year</span>
-                        </div>
+                                <div className="debt-grid-2">
+                                    <div className="debt-form-group">
+                                        <label>Source jar</label>
+                                        <select value={jarId} onChange={e => setJarId(e.target.value)}>
+                                            <option value="">-- Select a jar --</option>
+                                            {jars.map(j => (
+                                                <option key={j.id} value={j.id} disabled={jarDisabled(j)}>
+                                                    {jarLabel(j)}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="debt-form-group">
+                                        <div className="debt-label-row">
+                                            <label>Payment amount (₫)</label>
+                                            <button type="button" className="debt-max-btn" onClick={() => fillMax(debt)}>
+                                                Max
+                                            </button>
+                                        </div>
+                                        <input
+                                            type="number"
+                                            placeholder={`Max: ${formatMoney(debt.remainingAmount)}`}
+                                            value={payAmount}
+                                            onChange={e => setPayAmount(e.target.value)} />
+                                    </div>
+                                </div>
 
-                        <div className="debt-info-box">
-                            <span className="debt-info-label">Due date</span>
-                            <span className="debt-info-value">
-                                {debt.dueDate
-                                    ? new Date(debt.dueDate).toLocaleDateString("en-US")
-                                    : "None"}
-                            </span>
-                        </div>
-                    </div>
-
-                    <div className="debt-progress-section">
-                        <div className="debt-progress-bar">
-                            <div className="debt-progress-fill" style={{ width: `${calcPercent(debt)}%` }} />
-                        </div>
-                        <span className="debt-progress-text">Paid: {calcPercent(debt)}%</span>
-                    </div>
-
-                    {showPayForm === debt.id && (
-                        <div className="debt-sub-card">
-                            <h4>💸 Make a payment</h4>
-
-                            <div className="debt-grid-2">
-                                <div className="debt-form-group">
-                                    <label>Payment amount (₫)</label>
-                                    <input
-                                        type="number"
-                                        placeholder={`Max: ${formatMoney(debt.remainingAmount)}`}
-                                        value={payAmount}
-                                        onChange={e => setPayAmount(e.target.value)} />
+                                <div className="debt-actions">
+                                    <button className="debt-btn-primary" disabled={submitting}
+                                        onClick={() => handlePay(debt)}>
+                                        Confirm
+                                    </button>
+                                    <button className="debt-btn-secondary" onClick={() => setShowPayForm(null)}>
+                                        Cancel
+                                    </button>
                                 </div>
                             </div>
-
-                            <div className="debt-actions">
-                                <button className="debt-btn-primary" onClick={() => handlePay(debt)}>
-                                    Confirm
-                                </button>
-                                <button className="debt-btn-secondary" onClick={() => setShowPayForm(null)}>
-                                    Cancel
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            ))}
+                        )}
+                    </div>
+                );
+            })}
         </div>
     );
 }
