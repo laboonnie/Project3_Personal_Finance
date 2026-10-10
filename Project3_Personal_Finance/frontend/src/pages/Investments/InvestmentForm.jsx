@@ -1,50 +1,74 @@
 import React, { useState, useEffect } from 'react';
 import api from '../../api/api';
-import categoryApi from '../../api/categoryApi'; 
 import { toast } from 'react-toastify';
 import './Investments.css';
 
 const InvestmentForm = ({ onSuccess, onCancel }) => {
     const [formData, setFormData] = useState({
-        assetName: '', assetType: '', amountInvested: '', categoryId: '', investDate: new Date().toISOString().split('T')[0]
+        assetName: '', 
+        assetType: 'Cổ phiếu', 
+        amountInvested: '', 
+        jarId: '', 
+        investDate: new Date().toISOString().split('T')[0]
     });
     
     const [loading, setLoading] = useState(false);
-    const [ffaBalance, setFfaBalance] = useState(null); 
+    const [allowedJars, setAllowedJars] = useState([]); 
+    const [selectedJarBalance, setSelectedJarBalance] = useState(null);
 
+    // Lấy danh sách 2 Hũ cho phép (FFA & LTS) từ Backend
     useEffect(() => {
-        const fetchFFABalance = async () => {
+        const fetchAllowedJars = async () => {
             try {
-                const res = await api.get('/Investments/ffa-balance');
-                setFfaBalance(res.data.balance);
+                const res = await api.get('/Investments/allowed-jars');
+                setAllowedJars(res.data);
                 
-                // Khóa cứng ID của hũ FFA vào form để lúc Mua sẽ trừ đúng hũ này
-                setFormData(prev => ({ ...prev, categoryId: res.data.id }));
+                if (res.data.length > 0) {
+                    const firstJar = res.data[0];
+                    setFormData(prev => ({ ...prev, jarId: firstJar.jarId }));
+                    setSelectedJarBalance(firstJar.balance);
+                }
             } catch (error) {
-                toast.error("An error occurred while fetching FFA balance!");
+                toast.error("Không thể lấy thông tin hũ đầu tư!");
             }
         };
-        fetchFFABalance();
+        fetchAllowedJars();
     }, []);
+
+    // Xử lý khi thay đổi Hũ đầu tư
+    const handleJarChange = (e) => {
+        const jarId = Number(e.target.value);
+        const jar = allowedJars.find(j => j.jarId === jarId);
+        
+        setFormData(prev => ({ ...prev, jarId }));
+        setSelectedJarBalance(jar ? jar.balance : 0);
+    };
+
     const handleChange = (e) => setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
 
-    const formatMoney = (amount) => new Intl.NumberFormat('vi-VN').format(amount) + 'đ';
+    const formatMoney = (amount) => new Intl.NumberFormat('vi-VN').format(amount || 0) + 'đ';
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         
-        if (!formData.categoryId) {
-            toast.error('An error occurred while fetching FFA balance!');
+        if (!formData.jarId) {
+            toast.error('Vui lòng chọn Hũ dùng để đầu tư!');
             return;
         }
 
-        if (Number(formData.amountInvested) > ffaBalance) {
-            toast.error('The investment amount cannot exceed the balance in the FFA fund!');
+        if (Number(formData.amountInvested) > selectedJarBalance) {
+            toast.error('Số tiền đầu tư vượt quá số dư khả dụng của Hũ đã chọn!');
             return;
         }
 
         setLoading(true);
-        const payload = { ...formData, amountInvested: Number(formData.amountInvested), categoryId: Number(formData.categoryId) };
+        const payload = { 
+            assetName: formData.assetName,
+            assetType: formData.assetType,
+            amountInvested: Number(formData.amountInvested), 
+            jarId: Number(formData.jarId),
+            investDate: formData.investDate
+        };
 
         try {
             const res = await api.post('/Investments', payload);
@@ -52,17 +76,18 @@ const InvestmentForm = ({ onSuccess, onCancel }) => {
             
             toast.success(
                 <div>
-                    <strong>💸 Purchase successful!</strong><br/>
-                    Amount deducted: <b>{formatMoney(details.amount)}</b><br/>
-                    Remaining FFA balance: <b style={{color: '#059669'}}>{formatMoney(details.remainingBalance)}</b><br/>
-                    <small style={{color: '#666'}}>Time: {details.time}</small>
+                    <strong>💸 Nạp đầu tư thành công!</strong><br/>
+                    Tài sản: <b>{details.assetName}</b><br/>
+                    Số tiền trừ từ hũ <b>{details.jarName}</b>: <b>{formatMoney(details.amount)}</b><br/>
+                    Số dư hũ còn lại: <b style={{ color: '#059669' }}>{formatMoney(details.remainingBalance)}</b><br/>
+                    <small style={{ color: '#666' }}>Thời gian: {details.time}</small>
                 </div>, 
                 { autoClose: 5000 }
             );
             
             onSuccess(); 
         } catch (error) {
-            toast.error(error.response?.data || 'An error occurred while adding the investment!');
+            toast.error(error.response?.data || 'Đã có lỗi xảy ra khi nạp đầu tư!');
         } finally {
             setLoading(false);
         }
@@ -70,58 +95,98 @@ const InvestmentForm = ({ onSuccess, onCancel }) => {
 
     return (
         <div className="investment-form-container">
-            <h3>Purchase New Investment Assets ➕</h3>
+            <h3>Mua / Nạp Tài Sản Đầu Tư Mới ➕</h3>
             <p className="text-muted" style={{ fontSize: '13px', marginBottom: '20px' }}>
-                The investment funds will be extracted solely from the jar. <b>Financial Freedom</b>.
+                Nguồn vốn đầu tư chỉ được phép trích từ 2 hũ: <b>Tự do tài chính</b> hoặc <b>Tiết kiệm dài hạn</b>.
             </p>
 
             <form onSubmit={handleSubmit}>
                 <div className="form-grid">
+                    {/* CHỌN HŨ ĐẦU TƯ & HIỂN THỊ SỐ DƯ */}
                     <div className="form-group" style={{ gridColumn: '1 / -1' }}>
-                        {/* THẺ HIỂN THỊ SỐ DƯ HIỆN ĐẠI (THAY THẾ SELECT) */}
+                        <label className="fw-bold mb-1">Chọn Hũ Nguồn Vốn Đầu Tư:</label>
+                        <select 
+                            name="jarId" 
+                            className="form-select mb-3" 
+                            value={formData.jarId} 
+                            onChange={handleJarChange} 
+                            required
+                        >
+                            <option value="">-- Chọn Hũ Đầu Tư --</option>
+                            {allowedJars.map(jar => (
+                                <option key={jar.jarId} value={jar.jarId}>
+                                    {jar.jarName} (Dư khả dụng: {formatMoney(jar.balance)})
+                                </option>
+                            ))}
+                        </select>
+
+                        {/* THẺ HIỂN THỊ SỐ DƯ KHI CHỌN HŨ */}
                         <div className="ffa-balance-card">
                             <div className="ffa-icon">💎</div>
                             <div className="ffa-details">
-                                <span className="ffa-label">Source of funds: Financial Freedom</span>
+                                <span className="ffa-label">
+                                    Số dư khả dụng hũ {allowedJars.find(j => j.jarId === Number(formData.jarId))?.jarName || 'chọn'}:
+                                </span>
                                 <span className="ffa-amount">
-                                    {ffaBalance !== null ? formatMoney(ffaBalance) : 'Loading...'}
+                                    {selectedJarBalance !== null ? formatMoney(selectedJarBalance) : 'Đang tải...'}
                                 </span>
                             </div>
                         </div>
                     </div>
 
                     <div className="form-group">
-                        <label>Asset Name (Stock Code, Project Name...)</label>
-                        <input type="text" name="assetName" value={formData.assetName} onChange={handleChange} required />
+                        <label>Tên Tài Sản (Tên Cổ phiếu, Vàng, Dự án...)</label>
+                        <input 
+                            type="text" 
+                            name="assetName" 
+                            value={formData.assetName} 
+                            onChange={handleChange} 
+                            placeholder="VD: Vinamilk (VNM), Vàng SJC..."
+                            required 
+                        />
                     </div>
 
                     <div className="form-group">
-                        <label>Asset Type</label>
+                        <label>Loại Tài Sản</label>
                         <select name="assetType" value={formData.assetType} onChange={handleChange} required>
-                            <option value="">-- Select Asset Type --</option>
-                            <option value="Cổ phiếu">Stocks</option>
-                            <option value="Bất động sản">Real Estate</option>
-                            <option value="Tiền mã hóa">Cryptocurrency</option>
-                            <option value="Vàng">Gold</option>
+                            <option value="Cổ phiếu">Cổ phiếu</option>
+                            <option value="Trái phiếu">Trái phiếu</option>
+                            <option value="Vàng">Vàng</option>
+                            <option value="Bất động sản">Bất động sản</option>
+                            <option value="Tiền mã hóa">Tiền mã hóa (Crypto)</option>
                         </select>
                     </div>
 
                     <div className="form-group">
-                        <label>Investment Amount (VNĐ)</label>
-                        <input type="number" name="amountInvested" value={formData.amountInvested} onChange={handleChange} required min="1000" />
+                        <label>Số Tiền Mua (VNĐ)</label>
+                        <input 
+                            type="number" 
+                            name="amountInvested" 
+                            value={formData.amountInvested} 
+                            onChange={handleChange} 
+                            placeholder="VD: 5000000"
+                            required 
+                            min="1000" 
+                        />
                     </div>
 
                     <div className="form-group">
-                        <label>Investment Date</label>
-                        <input type="date" name="investDate" value={formData.investDate} onChange={handleChange} required />
+                        <label>Ngày Đầu Tư</label>
+                        <input 
+                            type="date" 
+                            name="investDate" 
+                            value={formData.investDate} 
+                            onChange={handleChange} 
+                            required 
+                        />
                     </div>
                 </div>
 
                 <div className="form-actions">
-                    <button type="submit" disabled={loading || ffaBalance === null} className="btn-submit">
-                        {loading ? 'Processing...' : 'Confirm Purchase'}
+                    <button type="submit" disabled={loading || selectedJarBalance === null} className="btn-submit">
+                        {loading ? 'Đang xử lý...' : 'Xác Nhận Đầu Tư'}
                     </button>
-                    <button type="button" onClick={onCancel} className="btn-cancel">Cancel</button>
+                    <button type="button" onClick={onCancel} className="btn-cancel">Hủy</button>
                 </div>
             </form>
         </div>
