@@ -84,69 +84,72 @@ namespace Project3_Personal_Finance.Controllers
                 User = new { user.Id, user.Name, user.Email, Role = user.Role ?? "User" }
             });
         }
+[HttpPost("forgot-password")]
+public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto request)
+{
+    // 1. Kiểm tra xem email có tồn tại không
+    var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
+    if (user == null)
+    {
+        return BadRequest("Email không tồn tại trong hệ thống!");
+    }
 
-        [HttpPost("forgot-password")]
-        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto request)
+    // 2. Tạo một mật khẩu tạm thời (8 ký tự ngẫu nhiên)
+    string tempPassword = Guid.NewGuid().ToString().Substring(0, 8);
+
+    // 3. Mã hóa mật khẩu tạm thời và lưu vào Database
+    user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(tempPassword);
+    await _context.SaveChangesAsync();
+
+    // 4. CẤU HÌNH GỬI EMAIL QUA GMAIL
+    try
+    {
+        string fromEmail = _configuration["EmailSettings:FromEmail"]?.Trim() ?? "";
+        string appPassword = _configuration["EmailSettings:AppPassword"]?.Trim() ?? "";
+        if (string.IsNullOrEmpty(fromEmail) || string.IsNullOrEmpty(appPassword) || fromEmail == "YOUR_GMAIL@gmail.com")
         {
-            // 1. Kiểm tra xem email có tồn tại không
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email);
-            if (user == null)
-            {
-                return BadRequest("The email address does not exist in the system!");
-            }
-
-            // 2. Tạo một mật khẩu tạm thời (8 ký tự ngẫu nhiên)
-            string tempPassword = Guid.NewGuid().ToString().Substring(0, 8);
-                return BadRequest("Email không tồn tại trong hệ thống!");
-            }
-
-            // 2. Tạo một mật khẩu tạm thời (8 ký tự ngẫu nhiên)
-            string tempPassword = Guid.NewGuid().ToString().Substring(0, 8);
-
-            // 3. Mã hóa mật khẩu tạm thời và lưu vào Database
-            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(tempPassword);
-            await _context.SaveChangesAsync();
-
-            // 4. CẤU HÌNH GỬI EMAIL QUA GMAIL
-            try
-            {
-                // THAY THẾ BẰNG EMAIL VÀ MẬT KHẨU ỨNG DỤNG CỦA BẠN
-                string fromEmail = "viethoangb05@gmail.com";
-                string appPassword = "madf pndo rpzb odjj";
-
-                var smtpClient = new SmtpClient("smtp.gmail.com")
-                {
-                    Port = 587,
-                    Credentials = new NetworkCredential(fromEmail, appPassword),
-                    EnableSsl = true,
-                };
-
-                var mailMessage = new MailMessage
-                {
-                    From = new MailAddress(fromEmail, "Finance App Support"),
-                    Subject = "Khôi phục mật khẩu - Personal Finance ",
-                    Body = $@"
-                        <h3>Xin chào {user.Name},</h3>
-                        <p>Hệ thống đã nhận được yêu cầu khôi phục mật khẩu của bạn.</p>
-                        <p>Mật khẩu đăng nhập tạm thời của bạn là: <b style='color: red; font-size: 18px;'>{tempPassword}</b></p>
-                        <p>Vui lòng đăng nhập và đổi lại mật khẩu của riêng bạn ngay lập tức để đảm bảo an toàn.</p>
-                        <br/>
-                        <p>Trân trọng,<br/>Đội ngũ Personal Finance</p>",
-                    IsBodyHtml = true, // Cho phép dùng thẻ HTML trong nội dung
-                };
-
-                mailMessage.To.Add(user.Email);
-
-                // Thực hiện gửi
-                await smtpClient.SendMailAsync(mailMessage);
-
-                return Ok(new { message = "Mật khẩu mới đã được gửi. Vui lòng kiểm tra hộp thư (hoặc mục Spam) của bạn!" });
-            }
-            catch (Exception ex)
-            {
-                return BadRequest($"Lỗi khi gửi email: {ex.Message}");
-            }
+            return BadRequest("Hệ thống chưa được cấu hình Email gửi đi trong appsettings.json!");
         }
+
+        var smtpClient = new SmtpClient("smtp.gmail.com")
+        {
+            Port = 587,
+            Credentials = new NetworkCredential(fromEmail, appPassword),
+            EnableSsl = true,
+        };
+
+        var mailMessage = new MailMessage
+        {
+            From = new MailAddress(fromEmail, "Finance App Support"),
+            Subject = "Khôi phục mật khẩu - Personal Finance",
+            Body = $@"
+                <div style='font-family: Arial, sans-serif; padding: 20px; line-height: 1.6;'>
+                    <h3>Xin chào {user.Name},</h3>
+                    <p>Hệ thống đã nhận được yêu cầu khôi phục mật khẩu cho tài khoản: <b>{user.Email}</b>.</p>
+                    <p>Mật khẩu đăng nhập tạm thời của bạn là:</p>
+                    <div style='background-color: #f3f4f6; padding: 12px 20px; font-size: 20px; font-weight: bold; color: #dc2626; letter-spacing: 2px; width: fit-content; border-radius: 6px; margin: 15px 0;'>
+                        {tempPassword}
+                    </div>
+                    <p>Vui lòng đăng nhập bằng mật khẩu này và đổi lại mật khẩu của riêng bạn ngay lập tức trong phần Hồ sơ để đảm bảo an toàn.</p>
+                    <br/>
+                    <p>Trân trọng,<br/><b>Đội ngũ Personal Finance</b></p>
+                </div>",
+            IsBodyHtml = true,
+        };
+
+        // Gửi chính xác đến email của tài khoản cần khôi phục mật khẩu
+        mailMessage.To.Add(user.Email);
+
+        await smtpClient.SendMailAsync(mailMessage);
+
+        return Ok(new { message = $"Mật khẩu mới đã được gửi đến email {user.Email}. Vui lòng kiểm tra hộp thư đến (hoặc thư rác/spam)!" });
+    }
+    catch (Exception ex)
+    {
+        string detail = ex.InnerException != null ? $"{ex.Message} ({ex.InnerException.Message})" : ex.Message;
+        return BadRequest($"Lỗi khi gửi email: {detail}");
+    }
+}
 
         private int GetCurrentUserId()
         {

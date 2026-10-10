@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Microsoft.EntityFrameworkCore;
 
@@ -176,7 +176,7 @@ public partial class PersonalFinanceDbContext : DbContext
             entity.HasIndex(e => e.Email, "UQ__Users__A9D1053486AACBA0").IsUnique();
 
             entity.Property(e => e.CreatedAt)
-                .HasDefaultValueSql("(getdate())")
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("datetime");
             entity.Property(e => e.Email).HasMaxLength(150);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
@@ -192,7 +192,7 @@ public partial class PersonalFinanceDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Token).HasMaxLength(255).IsRequired();
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
 
             entity.HasOne(d => d.User).WithMany()
                 .HasForeignKey(d => d.UserId)
@@ -205,7 +205,7 @@ public partial class PersonalFinanceDbContext : DbContext
             entity.Property(e => e.Title).HasMaxLength(200).IsRequired();
             entity.Property(e => e.Message).HasMaxLength(500).IsRequired();
             entity.Property(e => e.Type).HasMaxLength(50).IsRequired();
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
 
             entity.HasOne(d => d.User).WithMany()
                 .HasForeignKey(d => d.UserId)
@@ -216,7 +216,7 @@ public partial class PersonalFinanceDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.CarriedAmount).HasColumnType("decimal(18, 2)");
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
 
             entity.HasOne(d => d.User).WithMany()
                 .HasForeignKey(d => d.UserId)

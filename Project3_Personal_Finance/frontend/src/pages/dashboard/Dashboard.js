@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import SummaryCards from "../../components/SummaryCards";
 import JarChart from "../../components/JarChart";
 import BudgetTable from "../../components/table/BudgetTable";
@@ -12,12 +12,12 @@ export default function Dashboard(){
     const [budgets,setBudgets]=useState([]);
     const [goals,setGoals]=useState([]);
 
-    useEffect(()=>{
-        getSummary().then(res=>setSummary(res.data));
-        getJarSpending().then(res=>setJars(res.data));
-        getBudgets().then(res=>setBudgets(res.data));
-        getGoals().then(res=>setGoals(res.data));
-    },[])
+    useEffect(() => {
+        getSummary().then(res => setSummary(res.data)).catch(err => console.error("Summary error:", err));
+        getJarSpending().then(res => setJars(res.data)).catch(err => console.error("Jar spending error:", err));
+        getBudgets().then(res => setBudgets(res.data)).catch(err => console.error("Budgets error:", err));
+        getGoals().then(res => setGoals(res.data)).catch(err => console.error("Goals error:", err));
+    }, []);
     return(
         <div className="container mb-4">
             <h2>Personal Finance Dashboard</h2>

@@ -1,14 +1,16 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Project3_Personal_Finance.Models;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddDbContext<PersonalFinanceDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection") ??
-    "Server=localhost;Database=PersonalFinanceDB;Trusted_Connection=True;TrustServerCertificate=True"
-    //"Server=localhost\\SQLEXPRESS;Database=PersonalFinanceDB;Trusted_Connection=True;TrustServerCertificate=True;"
-    ));
+
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ??
+    "Server=localhost;Port=3306;Database=personalfinancedb;User=root;Password=;";
+
+builder.Services.AddDbContext<PersonalFinanceDbContext>(options =>
+    options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString)));
 // Add services to the container.
 
 builder.Services.AddControllers()
