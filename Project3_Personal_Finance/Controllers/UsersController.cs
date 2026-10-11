@@ -35,7 +35,7 @@ namespace Project3_Personal_Finance.Controllers
         [HttpPost("register")]
         public IActionResult Register(RegisterDto request)
         {
-            if (_context.Users.Any(u => u.Email == request.Email))
+                if (_context.Users.Any(u => u.Email == request.Email))
             {
                 return BadRequest("Email have been used.");
             }
