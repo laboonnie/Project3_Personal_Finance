@@ -5,3 +5,13 @@ node_modules/
 *.user
 *.suo
 *.log
+# JetBrains Rider / IntelliJ
+.idea/
+*.iml
+
+# Visual Studio local files
+.vs/
+
+# Build output
+**/bin/
+**/obj/
