@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import api from '../../api/api';
 import { budgetApi } from '../../api/budgetApi';
 import { transactionApi } from '../../api/transactionApi';
 import RemainingMoneyModal from './RemainingMoneyModal';
@@ -9,6 +10,7 @@ import './Budgets.css';
 
 const BudgetList = () => {
     const [budgets, setBudgets] = useState([]);
+    const [goals, setGoals] = useState([]);
     const [loading, setLoading] = useState(true);
     const [month, setMonth] = useState(new Date().getMonth() + 1);
     const [year, setYear] = useState(new Date().getFullYear());
@@ -155,7 +157,9 @@ const BudgetList = () => {
             loadData();
         }
     }, [loadData, year, refresh]);
-
+    useEffect(() => {
+        loadGoals();
+    }, []);
     const distributeBudget = async () => {
         if (distributableAmount <= 0) {
             alert('No income this month!');
@@ -193,7 +197,24 @@ const BudgetList = () => {
         setSelectedJar(jar);
         setShowForm(true);
     };
+    const loadGoals = async () => {
+        try {
+            const response = await api.get('/Goals');
 
+            const data = Array.isArray(response.data)
+                ? response.data
+                : [];
+
+            setGoals(
+                data.filter(goal =>
+                    String(goal.status || '').toLowerCase() !== 'completed'
+                )
+            );
+        } catch (error) {
+            console.error('Error loading goals:', error);
+            setGoals([]);
+        }
+    };
     // const handleDeleteBudget = async (jarId) => {
     //     if (window.confirm('Are you sure you want to delete this budget?')) {
     //         try {
@@ -336,21 +357,6 @@ const BudgetList = () => {
                     </div>
                 </div>
             )}
-
-            <div className="summary-cards">
-                <div className="summary-card">
-                    <h4>Total Budget</h4>
-                    <p className="amount">{formatMoney(summary.totalBudget)}</p>
-                </div>
-                <div className="summary-card total-spent">
-                    <h4>Spent</h4>
-                    <p className="amount">{formatMoney(summary.totalSpent)}</p>
-                </div>
-                <div className="summary-card total-remaining">
-                    <h4>Remaining</h4>
-                    <p className="amount">{formatMoney(summary.totalRemaining)}</p>
-                </div>
-            </div>
 
             <div className="remaining-section">
 
@@ -644,25 +650,16 @@ const BudgetList = () => {
                 <RemainingMoneyModal
                     month={month}
                     year={year}
-
-                    availableAmount={
-                        remainingSummary
-                            .availableRemaining
-                    }
-
+                    availableAmount={remainingSummary.availableRemaining}
                     jars={budgets}
-
-                    goals={[]}
+                    goals={goals}
                     debts={[]}
                     investments={[]}
-
-                    onClose={() =>
-                        setShowRemainingModal(false)
-                    }
-
+                    onClose={() => setShowRemainingModal(false)}
                     onSuccess={() => {
                         setShowRemainingModal(false);
                         refreshData();
+                        loadGoals();
                     }}
                 />
             )}

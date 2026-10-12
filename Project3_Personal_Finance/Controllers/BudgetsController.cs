@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Authorization;
+﻿
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Project3_Personal_Finance.Models;
@@ -21,47 +22,111 @@ namespace Project3_Personal_Finance.Controllers
         private int GetCurrentUserId()
         {
             var userIdString = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
             if (userIdString == null)
                 throw new UnauthorizedAccessException("User not authenticated");
+
             return int.Parse(userIdString);
         }
 
         // ==================== GET MONTHLY ====================
         [HttpGet("monthly")]
-        public async Task<IActionResult> GetMonthlyBudgets([FromQuery] int month, [FromQuery] int year)
+        public async Task<IActionResult> GetMonthlyBudgets(
+            [FromQuery] int month,
+            [FromQuery] int year)
         {
             try
             {
+                if (month < 1 || month > 12 || year < 2000 || year > 2100)
+                {
+                    return BadRequest(new
+                    {
+                        message = "Invalid month or year."
+                    });
+                }
+
                 var userId = GetCurrentUserId();
-                var jars = await _context.FinancialJars.ToListAsync();
+
+                var jars = await _context.FinancialJars
+                    .ToListAsync();
 
                 var budgetsList = await _context.Budgets
-                    .Where(b => b.UserId == userId && b.Month == month && b.Year == year)
+                    .Where(b =>
+                        b.UserId == userId &&
+                        b.Month == month &&
+                        b.Year == year)
                     .ToListAsync();
 
                 var budgets = new Dictionary<int, Budget>();
+
                 foreach (var budget in budgetsList)
                 {
                     if (!budgets.ContainsKey(budget.JarId))
+                    {
                         budgets[budget.JarId] = budget;
+                    }
                 }
 
                 var result = new List<object>();
 
+                var startDate = new DateTime(year, month, 1);
+                var endDate = startDate.AddMonths(1);
+
                 foreach (var jar in jars)
                 {
+                    // Tổng chi tiêu của lọ trong tháng
                     var spent = await _context.Transactions
-                        .Include(t => t.Category)
-                        .Where(t => t.UserId == userId
-                                    && t.Category.JarId == jar.Id
-                                    && t.Type == "Expense"
-                                    && t.TransactionDate.Month == month
-                                    && t.TransactionDate.Year == year)
-                        .SumAsync(t => t.Amount);
+                        .Where(t =>
+                            t.UserId == userId &&
+                            t.Category != null &&
+                            t.Category.JarId == jar.Id &&
+                            t.Type == "Expense" &&
+                            t.TransactionDate >= startDate &&
+                            t.TransactionDate < endDate)
+                        .SumAsync(t => (decimal?)t.Amount) ?? 0m;
 
-                    decimal budgetAmount = budgets.ContainsKey(jar.Id) ? budgets[jar.Id].BudgetAmount : 0;
-                    decimal progress = budgetAmount > 0 ? (spent / budgetAmount) * 100 : 0;
-                    decimal remaining = budgetAmount - spent;
+                    // Tiền chuyển từ tháng trước vào lọ này
+                    var carriedIn = await _context.BudgetCarriedOvers
+                        .Where(c =>
+                            c.UserId == userId &&
+                            c.JarId == jar.Id &&
+                            c.ToMonth == month &&
+                            c.ToYear == year)
+                        .SumAsync(c => (decimal?)c.CarriedAmount) ?? 0m;
+
+                    // Tiền chuyển từ tháng này sang tháng sau
+                    var carriedOut = await _context.BudgetCarriedOvers
+                        .Where(c =>
+                            c.UserId == userId &&
+                            c.JarId == jar.Id &&
+                            c.FromMonth == month &&
+                            c.FromYear == year)
+                        .SumAsync(c => (decimal?)c.CarriedAmount) ?? 0m;
+
+                    // Ngân sách được thiết lập
+                    decimal budgetAmount = budgets.ContainsKey(jar.Id)
+                        ? budgets[jar.Id].BudgetAmount
+                        : 0m;
+
+                    // Tổng ngân sách khả dụng của lọ
+                    decimal totalBudget = budgetAmount + carriedIn;
+
+                    // Tiến độ sử dụng ngân sách
+                    decimal progress = totalBudget > 0
+                        ? (spent / totalBudget) * 100
+                        : 0m;
+
+                    // Số dư ngân sách sau chi tiêu và chuyển tiền
+                    decimal remaining =
+                        totalBudget - spent - carriedOut;
+
+                    bool isOverBudget = spent > totalBudget;
+
+                    string status = isOverBudget
+                        ? "Over Budget"
+                        : totalBudget > 0
+                            ? "On Track"
+                            : "No Budget";
 
                     result.Add(new
                     {
@@ -69,12 +134,18 @@ namespace Project3_Personal_Finance.Controllers
                         JarName = jar.JarName,
                         JarCode = jar.JarCode,
                         DefaultPercentage = jar.DefaultPercentage,
+
                         BudgetAmount = budgetAmount,
+                        TotalBudget = totalBudget,
+
                         Spent = spent,
+                        CarriedIn = carriedIn,
+                        CarriedOut = carriedOut,
                         Remaining = remaining,
+
                         Progress = Math.Round(progress, 2),
-                        Status = spent > budgetAmount ? "Over Budget" : (budgetAmount > 0 ? "On Track" : "No Budget"),
-                        IsOverBudget = spent > budgetAmount
+                        Status = status,
+                        IsOverBudget = isOverBudget
                     });
                 }
 
@@ -82,13 +153,17 @@ namespace Project3_Personal_Finance.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = ex.Message });
+                return StatusCode(500, new
+                {
+                    message = ex.Message
+                });
             }
         }
 
         // ==================== CREATE ====================
         [HttpPost]
-        public async Task<IActionResult> CreateBudget([FromBody] Budget budget)
+        public async Task<IActionResult> CreateBudget(
+            [FromBody] Budget budget)
         {
             try
             {
@@ -96,19 +171,23 @@ namespace Project3_Personal_Finance.Controllers
                 budget.UserId = userId;
 
                 var existingBudget = await _context.Budgets
-                    .FirstOrDefaultAsync(b => b.UserId == userId
-                                            && b.JarId == budget.JarId
-                                            && b.Month == budget.Month
-                                            && b.Year == budget.Year);
+                    .FirstOrDefaultAsync(b =>
+                        b.UserId == userId &&
+                        b.JarId == budget.JarId &&
+                        b.Month == budget.Month &&
+                        b.Year == budget.Year);
 
                 if (existingBudget != null)
                 {
                     existingBudget.BudgetAmount = budget.BudgetAmount;
+
                     await _context.SaveChangesAsync();
+
                     return Ok(existingBudget);
                 }
 
                 _context.Budgets.Add(budget);
+
                 await _context.SaveChangesAsync();
 
                 var result = await _context.Budgets
@@ -119,7 +198,10 @@ namespace Project3_Personal_Finance.Controllers
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = ex.Message });
+                return StatusCode(500, new
+                {
+                    message = ex.Message
+                });
             }
         }
 
@@ -130,20 +212,30 @@ namespace Project3_Personal_Finance.Controllers
             try
             {
                 var userId = GetCurrentUserId();
+
                 var budget = await _context.Budgets
-                    .FirstOrDefaultAsync(b => b.Id == id && b.UserId == userId);
+                    .FirstOrDefaultAsync(b =>
+                        b.Id == id &&
+                        b.UserId == userId);
 
                 if (budget == null)
                     return NotFound();
 
                 _context.Budgets.Remove(budget);
+
                 await _context.SaveChangesAsync();
 
-                return Ok(new { message = "Delete successfully" });
+                return Ok(new
+                {
+                    message = "Delete successfully"
+                });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = ex.Message });
+                return StatusCode(500, new
+                {
+                    message = ex.Message
+                });
             }
         }
 
@@ -154,6 +246,7 @@ namespace Project3_Personal_Finance.Controllers
             try
             {
                 var userId = GetCurrentUserId();
+
                 var years = await _context.Budgets
                     .Where(b => b.UserId == userId)
                     .Select(b => b.Year)
@@ -162,18 +255,25 @@ namespace Project3_Personal_Finance.Controllers
                     .ToListAsync();
 
                 var currentYear = DateTime.Now.Year;
+
                 if (!years.Contains(currentYear))
                     years.Add(currentYear);
+
                 if (!years.Contains(currentYear + 1))
                     years.Add(currentYear + 1);
 
-                years = years.OrderByDescending(y => y).ToList();
+                years = years
+                    .OrderByDescending(y => y)
+                    .ToList();
 
                 return Ok(years);
             }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = ex.Message });
+                return StatusCode(500, new
+                {
+                    message = ex.Message
+                });
             }
         }
     }

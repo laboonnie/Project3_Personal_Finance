@@ -349,32 +349,7 @@ namespace Project3_Personal_Finance.Controllers
                     });
                 }
 
-                // 5. Lưu dữ liệu CŨ vào history TRƯỚC khi update
-                var history = new TransactionEditHistory
-                {
-                    TransactionId = transaction.Id,
-                    UserId = userId,
-
-                    OldCategoryId = transaction.CategoryId,
-                    NewCategoryId = request.CategoryId,
-
-                    OldAmount = transaction.Amount,
-                    NewAmount = request.Amount,
-
-                    OldType = transaction.Type,
-                    NewType = request.Type,
-
-                    OldTransactionDate = transaction.TransactionDate,
-                    NewTransactionDate = request.TransactionDate,
-
-                    OldNote = transaction.Note,
-                    NewNote = request.Note,
-
-                    EditedAt = DateTime.Now
-                };
-
-                _context.TransactionEditHistories.Add(history);
-
+                // Không sử dụng bảng TransactionEditHistory.
                 // 6. Update transaction
                 transaction.CategoryId = request.CategoryId;
                 transaction.Amount = request.Amount;
@@ -398,8 +373,7 @@ namespace Project3_Personal_Finance.Controllers
 
                 _context.Notifications.Add(notification);
 
-                // 8. History + Transaction + Notification
-                // được lưu trong cùng một SaveChanges
+                // Lưu Transaction và Notification cùng một SaveChanges
                 await _context.SaveChangesAsync();
 
                 return Ok(new
@@ -417,63 +391,21 @@ namespace Project3_Personal_Finance.Controllers
             }
         }
         // ==================== EDIT HISTORY ====================
+        // Chưa hỗ trợ lịch sử chỉnh sửa đầy đủ khi giữ nguyên 11 bảng gốc.
         [HttpGet("{id}/edit-history")]
         public async Task<IActionResult> GetEditHistory(int id)
         {
-            try
+            var userId = GetCurrentUserId();
+            var exists = await _context.Transactions
+                .AnyAsync(t => t.Id == id && t.UserId == userId);
+
+            if (!exists)
+                return NotFound(new { message = "Transaction not found." });
+
+            return StatusCode(501, new
             {
-                var userId = GetCurrentUserId();
-
-                // Chỉ được xem lịch sử transaction của chính mình
-                var transactionExists = await _context.Transactions
-                    .AnyAsync(t => t.Id == id && t.UserId == userId);
-
-                if (!transactionExists)
-                {
-                    return NotFound(new
-                    {
-                        message = "Transaction not found"
-                    });
-                }
-
-                var history = await _context.TransactionEditHistories
-                    .Where(h =>
-                        h.TransactionId == id &&
-                        h.UserId == userId)
-                    .OrderByDescending(h => h.EditedAt)
-                    .Select(h => new
-                    {
-                        h.Id,
-                        h.TransactionId,
-
-                        h.OldCategoryId,
-                        h.NewCategoryId,
-
-                        h.OldAmount,
-                        h.NewAmount,
-
-                        h.OldType,
-                        h.NewType,
-
-                        h.OldTransactionDate,
-                        h.NewTransactionDate,
-
-                        h.OldNote,
-                        h.NewNote,
-
-                        h.EditedAt
-                    })
-                    .ToListAsync();
-
-                return Ok(history);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new
-                {
-                    message = ex.Message
-                });
-            }
+                message = "Edit history is not supported with the original database schema."
+            });
         }
 
             } // đóng TransactionsController

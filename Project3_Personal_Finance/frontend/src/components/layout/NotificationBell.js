@@ -36,6 +36,10 @@ export default function NotificationBell() {
 
     useEffect(() => {
         loadCount();
+
+        const interval = setInterval(loadCount, 30000);
+
+        return () => clearInterval(interval);
     }, [loadCount]);
 
     useEffect(() => {

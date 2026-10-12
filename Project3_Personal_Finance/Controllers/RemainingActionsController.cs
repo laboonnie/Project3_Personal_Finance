@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Project3_Personal_Finance.DTOs;
 using Project3_Personal_Finance.Models;
 using System.Security.Claims;
+using System.Data;
 
 namespace Project3_Personal_Finance.Controllers
 {
@@ -20,726 +22,368 @@ namespace Project3_Personal_Finance.Controllers
 
         private int GetCurrentUserId()
         {
-            var userIdString =
-                User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-
-            if (string.IsNullOrEmpty(userIdString))
-                throw new UnauthorizedAccessException(
-                    "User not authenticated"
-                );
-
-            return int.Parse(userIdString);
-        }
-        private static (int Month, int Year) GetPreviousMonth(
-            int month,
-            int year)
-        {
-            if (month == 1)
-            {
-                return (12, year - 1);
-            }
-
-            return (month - 1, year);
+            var value = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (!int.TryParse(value, out var userId))
+                throw new UnauthorizedAccessException("User not authenticated");
+            return userId;
         }
 
-        // =====================================================
-        // GET SUMMARY
-        // GET /api/RemainingActions/summary?month=10&year=2026
-        // =====================================================
         [HttpGet("summary")]
-        public async Task<IActionResult> GetSummary(
-            [FromQuery] int month,
-            [FromQuery] int year)
+        public async Task<IActionResult> GetSummary([FromQuery] int month, [FromQuery] int year)
         {
-            try
+            if (month < 1 || month > 12 || year < 2000 || year > 2100 ||
+                (year == 2100 && month == 12))
+                return BadRequest(new { message = "Invalid month or year." });
+
+            var userId = GetCurrentUserId();
+            var start = new DateTime(year, month, 1);
+            var end = start.AddMonths(1);
+
+            var income = await _context.Transactions
+                .Where(t => t.UserId == userId && t.Type == "Income" &&
+                            t.TransactionDate >= start && t.TransactionDate < end)
+                .SumAsync(t => (decimal?)t.Amount) ?? 0m;
+            var expense = await _context.Transactions
+                .Where(t => t.UserId == userId && t.Type == "Expense" &&
+                            t.TransactionDate >= start && t.TransactionDate < end)
+                .SumAsync(t => (decimal?)t.Amount) ?? 0m;
+            var carriedIn = await _context.BudgetCarriedOvers
+                .Where(c => c.UserId == userId && c.ToMonth == month && c.ToYear == year)
+                .SumAsync(c => (decimal?)c.CarriedAmount) ?? 0m;
+            var carriedOut = await _context.BudgetCarriedOvers
+                .Where(c => c.UserId == userId && c.FromMonth == month && c.FromYear == year)
+                .SumAsync(c => (decimal?)c.CarriedAmount) ?? 0m;
+
+            var monthlyRemaining = income - expense;
+            var beforeProcessing = monthlyRemaining + carriedIn;
+            var available = Math.Max(beforeProcessing - carriedOut, 0m);
+            return Ok(new
             {
-                var userId = GetCurrentUserId();
-
-                if (month < 1 || month > 12)
-                {
-                    return BadRequest(new
-                    {
-                        message = "Invalid month."
-                    });
-                }
-
-                if (year < 2000 || year > 2100)
-                {
-                    return BadRequest(new
-                    {
-                        message = "Invalid year."
-                    });
-                }
-
-                var totalIncome = await _context.Transactions
-                    .Where(t =>
-                        t.UserId == userId &&
-                        t.Type == "Income" &&
-                        t.TransactionDate.Month == month &&
-                        t.TransactionDate.Year == year)
-                    .SumAsync(t => (decimal?)t.Amount) ?? 0;
-
-                var totalExpense = await _context.Transactions
-                    .Where(t =>
-                        t.UserId == userId &&
-                        t.Type == "Expense" &&
-                        t.TransactionDate.Month == month &&
-                        t.TransactionDate.Year == year)
-                    .SumAsync(t => (decimal?)t.Amount) ?? 0;
-
-                var monthlyRemaining =
-                    totalIncome - totalExpense;
-                var previous =
-                    GetPreviousMonth(month, year);
-
-                var carriedIn =
-                    await _context.RemainingActions
-                        .Where(r =>
-                            r.UserId == userId &&
-                            r.Month == previous.Month &&
-                            r.Year == previous.Year &&
-                            r.ActionType == "CARRY_OVER")
-                        .SumAsync(r =>
-                            (decimal?)r.Amount) ?? 0;
-
-                var processedAmount =
-                    await _context.RemainingActions
-                        .Where(r =>
-                            r.UserId == userId &&
-                            r.Month == month &&
-                            r.Year == year)
-                        .SumAsync(r => (decimal?)r.Amount) ?? 0;
-
-                var totalAvailableBeforeProcessing =
-                    monthlyRemaining + carriedIn;
-
-                var availableRemaining =
-                    Math.Max(
-                        totalAvailableBeforeProcessing -
-                        processedAmount,
-                        0
-                    );
-
-                return Ok(new
-                {
-                    month,
-                    year,
-
-                    totalIncome,
-                    totalExpense,
-
-                    monthlyRemaining,
-
-                    carriedIn,
-
-                    totalAvailableBeforeProcessing,
-
-                    processedAmount,
-
-                    availableRemaining,
-
-                    hasRemaining =
-                        availableRemaining > 0
-                });
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return Unauthorized(new
-                {
-                    message = "User not authenticated."
-                });
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new
-                {
-                    message = ex.Message
-                });
-            }
+                month,
+                year,
+                totalIncome = income,
+                totalExpense = expense,
+                monthlyRemaining,
+                carriedIn,
+                carriedOut,
+                totalAvailableBeforeProcessing = beforeProcessing,
+                processedAmount = carriedOut,
+                availableRemaining = available,
+                hasRemaining = available > 0m
+            });
         }
 
-        // =====================================================
-        // GET ACTION HISTORY
-        // GET /api/RemainingActions?month=10&year=2026
-        // =====================================================
         [HttpGet]
-        public async Task<IActionResult> GetActions(
-            [FromQuery] int month,
-            [FromQuery] int year)
+        public async Task<IActionResult> GetActions([FromQuery] int month, [FromQuery] int year)
         {
-            try
-            {
-                var userId = GetCurrentUserId();
+            if (month < 1 || month > 12 || year < 2000 || year > 2100)
+                return BadRequest(new { message = "Invalid month or year." });
 
-                if (month < 1 || month > 12)
+            var userId = GetCurrentUserId();
+            var actions = await _context.BudgetCarriedOvers
+                .AsNoTracking()
+                .Where(c => c.UserId == userId && c.FromMonth == month && c.FromYear == year)
+                .OrderByDescending(c => c.CreatedAt)
+                .ThenByDescending(c => c.Id)
+                .Select(c => new
                 {
-                    return BadRequest(new
-                    {
-                        message = "Invalid month."
-                    });
-                }
-
-                var actions = await _context.RemainingActions
-                    .Where(r =>
-                        r.UserId == userId &&
-                        r.Month == month &&
-                        r.Year == year)
-                    .OrderByDescending(r => r.CreatedAt)
-                    .Select(r => new
-                    {
-                        r.Id,
-                        r.Month,
-                        r.Year,
-                        r.Amount,
-                        r.ActionType,
-                        r.TargetJarId,
-                        TargetJarName = r.TargetJar != null
-                            ? r.TargetJar.JarName
-                            : null,
-
-                        r.GoalId,
-                        GoalName = r.Goal != null
-                            ? r.Goal.GoalName
-                            : null,
-
-                        r.DebtId,
-                        DebtName = r.Debt != null
-                            ? r.Debt.DebtName
-                            : null,
-
-                        r.InvestmentId,
-                        InvestmentName = r.Investment != null
-                            ? r.Investment.AssetName
-                            : null,
-
-                        r.CreatedAt
-                    })
-                    .ToListAsync();
-
-                return Ok(actions);
-            }
-            catch (UnauthorizedAccessException)
-            {
-                return Unauthorized();
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new
-                {
-                    message = ex.Message
-                });
-            }
+                    c.Id,
+                    Month = c.FromMonth,
+                    Year = c.FromYear,
+                    Amount = c.CarriedAmount,
+                    ActionType = "CARRY_OVER",
+                    TargetJarId = (int?)c.JarId,
+                    TargetJarName = c.Jar.JarName,
+                    GoalId = (int?)null,
+                    GoalName = (string?)null,
+                    DebtId = (int?)null,
+                    DebtName = (string?)null,
+                    InvestmentId = (int?)null,
+                    InvestmentName = (string?)null,
+                    c.CreatedAt
+                })
+                .ToListAsync();
+            return Ok(actions);
         }
 
-        // =====================================================
-        // POST ACTION
-        // POST /api/RemainingActions
-        // =====================================================
+        // GOAL / DEBT / INVESTMENT allocations are recorded as Expense transactions.
+        // This lets the existing monthly remaining calculation subtract them once.
         [HttpPost]
-        public async Task<IActionResult> CreateAction(
-            [FromBody] RemainingActionRequest request)
+        public async Task<IActionResult> CreateAction([FromBody] RemainingActionDto request)
         {
-            try
+            if (request == null || request.Month < 1 || request.Month > 12 ||
+                request.Year < 2000 || request.Year > 2100 ||
+                request.Amount <= 0m)
+                return BadRequest(new { message = "Invalid allocation request." });
+
+            var action = (request.ActionType ?? "").Trim().ToUpperInvariant();
+            if (action != "GOAL" && action != "DEBT" && action != "INVESTMENT")
+                return BadRequest(new { message = "Use GOAL, DEBT or INVESTMENT. Carry Over uses /carry-over." });
+
+            if ((action == "GOAL" && (!request.GoalId.HasValue || request.DebtId.HasValue || request.InvestmentId.HasValue)) ||
+                (action == "DEBT" && (!request.DebtId.HasValue || request.GoalId.HasValue || request.InvestmentId.HasValue)) ||
+                (action == "INVESTMENT" && (!request.InvestmentId.HasValue || request.GoalId.HasValue || request.DebtId.HasValue)))
+                return BadRequest(new { message = "Provide only the matching target ID." });
+
+            var userId = GetCurrentUserId();
+            var start = new DateTime(request.Year, request.Month, 1);
+            var end = start.AddMonths(1);
+            // Do not backdate a newly created allocation or allocate to a future month.
+            var today = DateTime.Today;
+            if (today < start || today >= end)
+                return BadRequest(new { message = "Allocations are supported for the current month only." });
+
+            await using var dbTransaction = await _context.Database
+                .BeginTransactionAsync(IsolationLevel.Serializable);
+
+            var categoryName = action == "GOAL" ? "Saving" :
+                               action == "DEBT" ? "Debt Payment" : "Investment";
+            var categories = await _context.Categories
+                .Where(c => c.Name == categoryName && c.Type == "Expense")
+                .Select(c => new { c.Id, c.JarId }).ToListAsync();
+            if (categories.Count != 1)
+                return Conflict(new { message = $"Expected exactly one Expense category named {categoryName}." });
+            var category = categories[0];
+            var jarId = category.JarId;
+            if (request.TargetJarId.HasValue && request.TargetJarId.Value != jarId)
+                return BadRequest(new { message = "Selected jar does not match the allocation category." });
+
+            string targetName;
+            if (action == "GOAL")
             {
-                var userId = GetCurrentUserId();
-
-                // -------------------------
-                // Basic validation
-                // -------------------------
-
-                if (request.Month < 1 || request.Month > 12)
-                {
-                    return BadRequest(new
-                    {
-                        message = "Invalid month."
-                    });
-                }
-
-                if (request.Year < 2000 || request.Year > 2100)
-                {
-                    return BadRequest(new
-                    {
-                        message = "Invalid year."
-                    });
-                }
-
-                if (request.Amount <= 0)
-                {
-                    return BadRequest(new
-                    {
-                        message =
-                            "Amount must be greater than 0."
-                    });
-                }
-
-                if (string.IsNullOrWhiteSpace(
-                    request.ActionType))
-                {
-                    return BadRequest(new
-                    {
-                        message =
-                            "Please select an action."
-                    });
-                }
-
-                var actionType =
-                    request.ActionType
-                        .Trim()
-                        .ToUpperInvariant();
-
-                var allowedActions = new[]
-                {
-                    "CARRY_OVER",
-                    "JAR",
-                    "GOAL",
-                    "DEBT",
-                    "INVESTMENT",
-                    "KEEP"
-                };
-
-                if (!allowedActions.Contains(actionType))
-                {
-                    return BadRequest(new
-                    {
-                        message = "Invalid action type."
-                    });
-                }
-
-                // -------------------------
-                // Calculate actual balance
-                // -------------------------
-
-                var totalIncome =
-                    await _context.Transactions
-                        .Where(t =>
-                            t.UserId == userId &&
-                            t.Type == "Income" &&
-                            t.TransactionDate.Month ==
-                                request.Month &&
-                            t.TransactionDate.Year ==
-                                request.Year)
-                        .SumAsync(t =>
-                            (decimal?)t.Amount) ?? 0;
-
-                var totalExpense =
-                    await _context.Transactions
-                        .Where(t =>
-                            t.UserId == userId &&
-                            t.Type == "Expense" &&
-                            t.TransactionDate.Month ==
-                                request.Month &&
-                            t.TransactionDate.Year ==
-                                request.Year)
-                        .SumAsync(t =>
-                            (decimal?)t.Amount) ?? 0;
-
-                var monthlyRemaining =
-                    totalIncome - totalExpense;
-
-                var previous =
-                    GetPreviousMonth(
-                        request.Month,
-                        request.Year
-                    );
-
-                var carriedIn =
-                    await _context.RemainingActions
-                        .Where(r =>
-                            r.UserId == userId &&
-                            r.Month == previous.Month &&
-                            r.Year == previous.Year &&
-                            r.ActionType == "CARRY_OVER")
-                        .SumAsync(r =>
-                            (decimal?)r.Amount) ?? 0;
-
-                var totalAvailableBeforeProcessing =
-                    monthlyRemaining + carriedIn;
-
-
-
-                var processedAmount =
-                    await _context.RemainingActions
-                        .Where(r =>
-                            r.UserId == userId &&
-                            r.Month == request.Month &&
-                            r.Year == request.Year)
-                        .SumAsync(r =>
-                            (decimal?)r.Amount) ?? 0;
-
-                var availableRemaining =
-                    totalAvailableBeforeProcessing -
-                    processedAmount;
-
-                if (availableRemaining <= 0)
-                {
-                    return BadRequest(new
-                    {
-                        message =
-                            "There is no remaining money to manage."
-                    });
-                }
-
-                if (request.Amount > availableRemaining)
-                {
-                    return BadRequest(new
-                    {
-                        message =
-                            $"Amount cannot exceed available remaining money ({availableRemaining:N0} VND)."
-                    });
-                }
-
-                // -------------------------
-                // Validate target
-                // -------------------------
-
-                FinancialJar? targetJar = null;
-                Goal? goal = null;
-                Debt? debt = null;
-                Investment? investment = null;
-
-                if (actionType == "JAR")
-                {
-                    if (!request.TargetJarId.HasValue)
-                    {
-                        return BadRequest(new
-                        {
-                            message =
-                                "Please select a jar."
-                        });
-                    }
-
-                    targetJar =
-                        await _context.FinancialJars
-                            .FirstOrDefaultAsync(j =>
-                                j.Id ==
-                                request.TargetJarId.Value);
-
-                    if (targetJar == null)
-                    {
-                        return BadRequest(new
-                        {
-                            message = "Jar not found."
-                        });
-                    }
-                }
-
-                if (actionType == "GOAL")
-                {
-                    if (!request.GoalId.HasValue)
-                    {
-                        return BadRequest(new
-                        {
-                            message =
-                                "Please select a goal."
-                        });
-                    }
-
-                    goal = await _context.Goals
-                        .FirstOrDefaultAsync(g =>
-                            g.Id == request.GoalId.Value &&
-                            g.UserId == userId);
-
-                    if (goal == null)
-                    {
-                        return BadRequest(new
-                        {
-                            message = "Goal not found."
-                        });
-                    }
-
-                    var goalRemaining =
-                        goal.TargetAmount -
-                        goal.CurrentAmount;
-
-                    if (goalRemaining <= 0)
-                    {
-                        return BadRequest(new
-                        {
-                            message =
-                                "This goal has already been completed."
-                        });
-                    }
-
-                    if (request.Amount > goalRemaining)
-                    {
-                        return BadRequest(new
-                        {
-                            message =
-                                $"Amount exceeds the remaining goal amount ({goalRemaining:N0} VND)."
-                        });
-                    }
-                }
-
-                if (actionType == "DEBT")
-                {
-                    if (!request.DebtId.HasValue)
-                    {
-                        return BadRequest(new
-                        {
-                            message =
-                                "Please select a debt."
-                        });
-                    }
-
-                    debt = await _context.Debts
-                        .FirstOrDefaultAsync(d =>
-                            d.Id == request.DebtId.Value &&
-                            d.UserId == userId);
-
-                    if (debt == null)
-                    {
-                        return BadRequest(new
-                        {
-                            message = "Debt not found."
-                        });
-                    }
-
-                    if (debt.RemainingAmount <= 0)
-                    {
-                        return BadRequest(new
-                        {
-                            message =
-                                "This debt has already been paid."
-                        });
-                    }
-
-                    if (request.Amount >
-                        debt.RemainingAmount)
-                    {
-                        return BadRequest(new
-                        {
-                            message =
-                                $"Amount exceeds the remaining debt ({debt.RemainingAmount:N0} VND)."
-                        });
-                    }
-                }
-
-                if (actionType == "INVESTMENT")
-                {
-                    if (!request.InvestmentId.HasValue)
-                    {
-                        return BadRequest(new
-                        {
-                            message =
-                                "Please select an investment."
-                        });
-                    }
-
-                    investment =
-                        await _context.Investments
-                            .FirstOrDefaultAsync(i =>
-                                i.Id ==
-                                    request.InvestmentId.Value &&
-                                i.UserId == userId);
-
-                    if (investment == null)
-                    {
-                        return BadRequest(new
-                        {
-                            message =
-                                "Investment not found."
-                        });
-                    }
-                }
-
-                // -------------------------
-                // Database transaction
-                // -------------------------
-
-                await using var dbTransaction =
-                    await _context.Database
-                        .BeginTransactionAsync();
-
-                try
-                {
-                    var action = new RemainingAction
-                    {
-                        UserId = userId,
-                        Month = request.Month,
-                        Year = request.Year,
-                        Amount = request.Amount,
-                        ActionType = actionType,
-
-                        TargetJarId =
-                            actionType == "JAR"
-                                ? request.TargetJarId
-                                : null,
-
-                        GoalId =
-                            actionType == "GOAL"
-                                ? request.GoalId
-                                : null,
-
-                        DebtId =
-                            actionType == "DEBT"
-                                ? request.DebtId
-                                : null,
-
-                        InvestmentId =
-                            actionType == "INVESTMENT"
-                                ? request.InvestmentId
-                                : null,
-
-                        CreatedAt = DateTime.Now
-                    };
-
-                    _context.RemainingActions.Add(action);
-
-                    // Goal receives money
-                    if (actionType == "GOAL" &&
-                        goal != null)
-                    {
-                        goal.CurrentAmount +=
-                            request.Amount;
-
-                        if (goal.CurrentAmount >=
-                            goal.TargetAmount)
-                        {
-                            goal.CurrentAmount =
-                                goal.TargetAmount;
-
-                            goal.Status = "Completed";
-                        }
-                    }
-
-                    // Debt is reduced
-                    if (actionType == "DEBT" &&
-                        debt != null)
-                    {
-                        debt.RemainingAmount -=
-                            request.Amount;
-
-                        if (debt.RemainingAmount < 0)
-                        {
-                            debt.RemainingAmount = 0;
-                        }
-                    }
-
-                    // Existing investment receives more capital
-                    if (actionType == "INVESTMENT" &&
-                        investment != null)
-                    {
-                        investment.AmountInvested +=
-                            request.Amount;
-                    }
-
-                    var notification =
-                        new Notification
-                        {
-                            UserId = userId,
-                            Title =
-                                "Remaining money managed",
-                            Message =
-                                $"{request.Amount:N0} VND was allocated to {GetActionDisplayName(actionType)}.",
-                            Type =
-                                "REMAINING_MANAGED",
-                            IsRead = false,
-                            CreatedAt = DateTime.Now
-                        };
-
-                    _context.Notifications
-                        .Add(notification);
-
-                    await _context.SaveChangesAsync();
-
-                    await dbTransaction.CommitAsync();
-
-                    var newProcessedAmount =
-                        processedAmount +
-                        request.Amount;
-
-                    var newAvailableRemaining =
-                        Math.Max(
-                            monthlyRemaining -
-                            newProcessedAmount,
-                            0);
-
-                    return Ok(new
-                    {
-                        message =
-                            "Remaining money managed successfully.",
-                        actionId = action.Id,
-                        actionType,
-                        amount = action.Amount,
-                        monthlyRemaining,
-                        processedAmount =
-                            newProcessedAmount,
-                        availableRemaining =
-                            newAvailableRemaining
-                    });
-                }
-                catch
-                {
-                    await dbTransaction.RollbackAsync();
-                    throw;
-                }
+                var goal = await _context.Goals.FirstOrDefaultAsync(g =>
+                    g.Id == request.GoalId!.Value && g.UserId == userId);
+                if (goal == null) return NotFound(new { message = "Goal not found." });
+                if (goal.JarId.HasValue && goal.JarId.Value != jarId)
+                    return BadRequest(new { message = "Goal belongs to a different jar." });
+                var current = goal.CurrentAmount ?? 0m;
+                if (goal.TargetAmount.HasValue && current + request.Amount > goal.TargetAmount.Value)
+                    return BadRequest(new { message = "Amount exceeds the goal target." });
+                goal.CurrentAmount = current + request.Amount;
+                targetName = goal.GoalName ?? $"Goal #{goal.Id}";
             }
-            catch (UnauthorizedAccessException)
+            else if (action == "DEBT")
             {
-                return Unauthorized(new
-                {
-                    message =
-                        "User not authenticated."
-                });
+                var debt = await _context.Debts.FirstOrDefaultAsync(d =>
+                    d.Id == request.DebtId!.Value && d.UserId == userId);
+                if (debt == null) return NotFound(new { message = "Debt not found." });
+                if (debt.JarId.HasValue && debt.JarId.Value != jarId)
+                    return BadRequest(new { message = "Debt belongs to a different jar." });
+                if (!debt.RemainingAmount.HasValue || debt.RemainingAmount.Value < request.Amount)
+                    return BadRequest(new { message = "Amount exceeds the remaining debt." });
+                debt.RemainingAmount -= request.Amount;
+                targetName = debt.DebtName ?? $"Debt #{debt.Id}";
             }
-            catch (Exception ex)
+            else
             {
-                return StatusCode(500, new
-                {
-                    message = ex.Message
-                });
+                var investment = await _context.Investments.FirstOrDefaultAsync(i =>
+                    i.Id == request.InvestmentId!.Value && i.UserId == userId);
+                if (investment == null) return NotFound(new { message = "Investment not found." });
+                if (investment.JarId.HasValue && investment.JarId.Value != jarId)
+                    return BadRequest(new { message = "Investment belongs to a different jar." });
+                investment.AmountInvested = (investment.AmountInvested ?? 0m) + request.Amount;
+                // CurrentValue is a valuation, not a cash contribution; leave it unchanged.
+                targetName = investment.AssetName ?? $"Investment #{investment.Id}";
             }
-        }
 
-        private static string GetActionDisplayName(
-            string actionType)
-        {
-            return actionType switch
+            var budgetAmounts = await _context.Budgets
+                .Where(b => b.UserId == userId && b.JarId == jarId &&
+                            b.Month == request.Month && b.Year == request.Year)
+                .Select(b => b.BudgetAmount).ToListAsync();
+            if (budgetAmounts.Count != 1)
+                return BadRequest(new { message = "Exactly one monthly budget is required for this jar." });
+
+            var jarSpent = await _context.Transactions
+                .Where(t => t.UserId == userId && t.Type == "Expense" &&
+                            t.TransactionDate >= start && t.TransactionDate < end &&
+                            t.Category.JarId == jarId)
+                .SumAsync(t => (decimal?)t.Amount) ?? 0m;
+            var jarCarriedIn = await _context.BudgetCarriedOvers
+                .Where(c => c.UserId == userId && c.JarId == jarId &&
+                            c.ToMonth == request.Month && c.ToYear == request.Year)
+                .SumAsync(c => (decimal?)c.CarriedAmount) ?? 0m;
+            var jarCarriedOut = await _context.BudgetCarriedOvers
+                .Where(c => c.UserId == userId && c.JarId == jarId &&
+                            c.FromMonth == request.Month && c.FromYear == request.Year)
+                .SumAsync(c => (decimal?)c.CarriedAmount) ?? 0m;
+            var jarAvailable = budgetAmounts[0] + jarCarriedIn - jarSpent - jarCarriedOut;
+            if (request.Amount > jarAvailable)
+                return BadRequest(new { message = "Amount exceeds the selected jar's remaining budget.", jarAvailable = Math.Max(0m, jarAvailable) });
+
+            var income = await _context.Transactions
+                .Where(t => t.UserId == userId && t.Type == "Income" &&
+                            t.TransactionDate >= start && t.TransactionDate < end)
+                .SumAsync(t => (decimal?)t.Amount) ?? 0m;
+            var expense = await _context.Transactions
+                .Where(t => t.UserId == userId && t.Type == "Expense" &&
+                            t.TransactionDate >= start && t.TransactionDate < end)
+                .SumAsync(t => (decimal?)t.Amount) ?? 0m;
+            var carriedIn = await _context.BudgetCarriedOvers
+                .Where(c => c.UserId == userId && c.ToMonth == request.Month && c.ToYear == request.Year)
+                .SumAsync(c => (decimal?)c.CarriedAmount) ?? 0m;
+            var carriedOut = await _context.BudgetCarriedOvers
+                .Where(c => c.UserId == userId && c.FromMonth == request.Month && c.FromYear == request.Year)
+                .SumAsync(c => (decimal?)c.CarriedAmount) ?? 0m;
+            var available = income - expense + carriedIn - carriedOut;
+            if (request.Amount > available)
+                return BadRequest(new { message = "Amount exceeds available remaining money.", availableRemaining = Math.Max(0m, available) });
+
+            var transaction = new Transaction
             {
-                "CARRY_OVER" =>
-                    "next month",
-
-                "JAR" =>
-                    "a financial jar",
-
-                "GOAL" =>
-                    "a financial goal",
-
-                "DEBT" =>
-                    "debt payment",
-
-                "INVESTMENT" =>
-                    "an investment",
-
-                "KEEP" =>
-                    "cash reserve",
-
-                _ =>
-                    "remaining balance"
+                UserId = userId,
+                CategoryId = category.Id,
+                JarId = jarId,
+                Amount = request.Amount,
+                Type = "Expense",
+                TransactionDate = today,
+                Note = $"[REMAINING:{action}] {targetName}",
+                GoalId = action == "GOAL" ? request.GoalId : null,
+                DebtId = action == "DEBT" ? request.DebtId : null,
+                InvestmentId = action == "INVESTMENT" ? request.InvestmentId : null
             };
+            _context.Transactions.Add(transaction);
+            _context.Notifications.Add(new Notification
+            {
+                UserId = userId,
+                Title = "Remaining money allocated",
+                Message = $"{request.Amount:N0} VND allocated to {action}: {targetName}.",
+                Type = "REMAINING_ALLOCATION",
+                IsRead = false,
+                CreatedAt = DateTime.Now
+            });
+            await _context.SaveChangesAsync();
+            await dbTransaction.CommitAsync();
+            return Ok(new
+            {
+                message = "Allocation successful.",
+                actionType = action,
+                transactionId = transaction.Id,
+                amount = request.Amount,
+                jarId,
+                availableRemainingAfter = available - request.Amount,
+                jarRemainingAfter = jarAvailable - request.Amount
+            });
         }
-    }
 
-    // =========================================================
-    // REQUEST MODEL
-    // =========================================================
-    public class RemainingActionRequest
-    {
-        public int Month { get; set; }
+        [HttpPost("carry-over")]
+        public async Task<IActionResult> CarryOver([FromBody] RemainingActionDto request)
+        {
+            if (request == null || request.Month < 1 || request.Month > 12 ||
+                request.Year < 2000 || request.Year > 2100 ||
+                (request.Year == 2100 && request.Month == 12) ||
+                request.Amount <= 0m || !request.TargetJarId.HasValue ||
+                !string.Equals(request.ActionType?.Trim(), "CARRY_OVER", StringComparison.OrdinalIgnoreCase))
+                return BadRequest(new { message = "Invalid carry-over request." });
 
-        public int Year { get; set; }
+            var userId = GetCurrentUserId();
+            var jarId = request.TargetJarId.Value;
+            var from = new DateTime(request.Year, request.Month, 1);
+            var next = from.AddMonths(1);
 
-        public decimal Amount { get; set; }
+            // SERIALIZABLE keeps balance checks and the new carry-over row together.
+            await using var dbTransaction = await _context.Database
+                .BeginTransactionAsync(IsolationLevel.Serializable);
 
-        public string ActionType { get; set; }
-            = string.Empty;
+            var jarExists = await _context.FinancialJars.AnyAsync(j => j.Id == jarId);
+            if (!jarExists)
+                return BadRequest(new { message = "Jar not found." });
 
-        public int? TargetJarId { get; set; }
+            var budgets = await _context.Budgets
+                .Where(b => b.UserId == userId && b.JarId == jarId &&
+                            b.Month == request.Month && b.Year == request.Year)
+                .Select(b => b.BudgetAmount)
+                .ToListAsync();
 
-        public int? GoalId { get; set; }
+            if (budgets.Count == 0)
+                return BadRequest(new { message = "Set a budget for this jar before carrying money over." });
+            if (budgets.Count > 1)
+                return Conflict(new { message = "Multiple budgets exist for this jar and month. Resolve duplicate budgets first." });
 
-        public int? DebtId { get; set; }
+            var budgetAmount = budgets[0];
+            var jarCarriedIn = await _context.BudgetCarriedOvers
+                .Where(c => c.UserId == userId && c.JarId == jarId &&
+                            c.ToMonth == request.Month && c.ToYear == request.Year)
+                .SumAsync(c => (decimal?)c.CarriedAmount) ?? 0m;
+            var jarCarriedOut = await _context.BudgetCarriedOvers
+                .Where(c => c.UserId == userId && c.JarId == jarId &&
+                            c.FromMonth == request.Month && c.FromYear == request.Year)
+                .SumAsync(c => (decimal?)c.CarriedAmount) ?? 0m;
 
-        public int? InvestmentId { get; set; }
+            // Same jar attribution as BudgetsController: Category.JarId.
+            var jarSpent = await _context.Transactions
+                .Where(t => t.UserId == userId && t.Type == "Expense" &&
+                            t.TransactionDate >= from && t.TransactionDate < next &&
+                            t.Category.JarId == jarId)
+                .SumAsync(t => (decimal?)t.Amount) ?? 0m;
+
+            var jarAvailable = budgetAmount + jarCarriedIn - jarSpent - jarCarriedOut;
+            if (request.Amount > jarAvailable)
+                return BadRequest(new
+                {
+                    message = "Amount exceeds this jar's remaining budget.",
+                    jarAvailable = Math.Max(jarAvailable, 0m)
+                });
+
+            var income = await _context.Transactions
+                .Where(t => t.UserId == userId && t.Type == "Income" &&
+                            t.TransactionDate >= from && t.TransactionDate < next)
+                .SumAsync(t => (decimal?)t.Amount) ?? 0m;
+            var expense = await _context.Transactions
+                .Where(t => t.UserId == userId && t.Type == "Expense" &&
+                            t.TransactionDate >= from && t.TransactionDate < next)
+                .SumAsync(t => (decimal?)t.Amount) ?? 0m;
+            var carriedIn = await _context.BudgetCarriedOvers
+                .Where(c => c.UserId == userId && c.ToMonth == request.Month && c.ToYear == request.Year)
+                .SumAsync(c => (decimal?)c.CarriedAmount) ?? 0m;
+            var carriedOut = await _context.BudgetCarriedOvers
+                .Where(c => c.UserId == userId && c.FromMonth == request.Month && c.FromYear == request.Year)
+                .SumAsync(c => (decimal?)c.CarriedAmount) ?? 0m;
+
+            var available = income - expense + carriedIn - carriedOut;
+            if (request.Amount > available)
+                return BadRequest(new
+                {
+                    message = "Amount exceeds available remaining money for this month.",
+                    availableRemaining = Math.Max(available, 0m)
+                });
+
+            _context.BudgetCarriedOvers.Add(new BudgetCarriedOver
+            {
+                UserId = userId,
+                JarId = jarId,
+                FromMonth = request.Month,
+                FromYear = request.Year,
+                ToMonth = next.Month,
+                ToYear = next.Year,
+                CarriedAmount = request.Amount,
+                CreatedAt = DateTime.Now
+            });
+
+            _context.Notifications.Add(new Notification
+            {
+                UserId = userId,
+                Title = "Money carried over",
+                Message = $"{request.Amount:N0} VND carried from jar to {next.Month}/{next.Year}.",
+                Type = "CARRY_OVER",
+                IsRead = false,
+                CreatedAt = DateTime.Now
+            });
+
+            await _context.SaveChangesAsync();
+            await dbTransaction.CommitAsync();
+
+            return Ok(new
+            {
+                message = "Carry over successful.",
+                amount = request.Amount,
+                fromMonth = request.Month,
+                fromYear = request.Year,
+                toMonth = next.Month,
+                toYear = next.Year,
+                jarId,
+                jarRemainingAfter = jarAvailable - request.Amount,
+                availableRemainingAfter = available - request.Amount
+            });
+        }
     }
 }

@@ -84,7 +84,7 @@ const RemainingMoneyModal = ({
         const numericAmount =
             Number(amount);
 
-        if (!numericAmount ||
+        if (!Number.isFinite(numericAmount) ||
             numericAmount <= 0) {
             return 'Please enter a valid amount.';
         }
@@ -92,6 +92,11 @@ const RemainingMoneyModal = ({
         if (numericAmount >
             availableAmount) {
             return 'Amount cannot exceed the available balance.';
+        }
+
+        if (actionType === 'CARRY_OVER' &&
+            !targetJarId) {
+            return 'Please select a destination jar.';
         }
 
         if (actionType === 'JAR' &&
@@ -130,6 +135,11 @@ const RemainingMoneyModal = ({
             return;
         }
 
+        if (['JAR', 'KEEP'].includes(actionType)) {
+            setError('This action is not available yet.');
+            return;
+        }
+
         const payload = {
             month,
             year,
@@ -137,7 +147,7 @@ const RemainingMoneyModal = ({
             actionType,
 
             targetJarId:
-                actionType === 'JAR'
+                (actionType === 'JAR' || actionType === 'CARRY_OVER')
                     ? Number(targetJarId)
                     : null,
 
@@ -160,11 +170,15 @@ const RemainingMoneyModal = ({
         try {
             setLoading(true);
 
-            await remainingActionApi.create(
-                payload
-            );
+            if (actionType === 'CARRY_OVER') {
+                await remainingActionApi.createCarryOver(payload);
+            } else {
+                await remainingActionApi.create(payload);
+            }
 
-            onSuccess();
+            if (typeof onSuccess === 'function') {
+                await onSuccess();
+            }
         } catch (err) {
             console.error(
                 'Error managing remaining money:',
@@ -244,13 +258,13 @@ const RemainingMoneyModal = ({
                                     key={action.value}
                                     value={action.value}
                                 >
-                                    {action.label}
+                                    {action.label}{['JAR', 'KEEP'].includes(action.value) ? ' (Coming soon)' : ''}
                                 </option>
                             ))}
                         </select>
                     </div>
 
-                    {actionType === 'JAR' && (
+                    {(actionType === 'JAR' || actionType === 'CARRY_OVER') && (
                         <div className="form-group">
                             <label>
                                 Jar
@@ -424,6 +438,12 @@ const RemainingMoneyModal = ({
                         </div>
                     )}
 
+                    {['JAR', 'KEEP'].includes(actionType) && (
+                        <div className="remaining-error">
+                            This action is temporarily unavailable.
+                        </div>
+                    )}
+
                     <div className="form-actions">
                         <button
                             type="button"
@@ -437,7 +457,7 @@ const RemainingMoneyModal = ({
                         <button
                             type="submit"
                             className="btn-save"
-                            disabled={loading}
+                            disabled={loading || ['JAR', 'KEEP'].includes(actionType)}
                         >
                             {loading
                                 ? 'Processing...'
