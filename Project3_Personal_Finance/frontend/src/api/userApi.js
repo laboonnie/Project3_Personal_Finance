@@ -6,6 +6,8 @@ const userApi ={
     updateUser:(id,data) => api.put(`/users/${id}`,data),
     // deleteUser:(id) => api.delete(`/users/${id}`)
     toggleActive: (id) => api.put(`/Users/${id}/toggle-active`),
+    forgotPassword: (email) => api.post("/Users/forgot-password", { email }),
+    resetPassword: (data) => api.post("/Users/reset-password", data),
 }
 
 export default userApi;
