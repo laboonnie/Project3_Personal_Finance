@@ -3,7 +3,6 @@ import api from '../../api/api';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import './login.css';
-import 'bootstrap/dist/css/bootstrap.min.css';
 
 const Login = () => {
     const [email, setEmail] = useState('');
@@ -14,89 +13,46 @@ const Login = () => {
 
     const navigate = useNavigate();
 
-    // const handleLogin = async (e) => {
-    //     e.preventDefault();
-    //     try {
-    //         const response = await api.post('/Users/login', { email, password });
-    //         const user = response.data.user || response.data.User;
-    //         const userRole = (user?.role || user?.Role || '').toString();
-
-    //         localStorage.setItem('token', response.data.token|| response.data.Token);
-    //         localStorage.setItem('userName', response.data.user.name|| user?.Name);
-    //         localStorage.setItem('role', response.data.user.role); 
-
-    //         toast.success('Login successful! Welcome back, ' + response.data.user.name);
-
-    //        if (userRole.toLowerCase() === 'admin') {
-    //             navigate('/admin/dashboard'); 
-    //         } else {
-    //             navigate('/dashboard');
-    //         }
-    //     } catch (error) {
-    //         if (error.response && error.response.data) {
-    //             toast.error(error.response.data); 
-    //         } else {
-    //             toast.error("An error occurred during login! Please try again.");
-    //         }
-    //     }
-    // };
     const handleLogin = async (e) => {
         e.preventDefault();
         try {
-            console.log(">>> Sending login payload:", { email, password });
-
             const response = await api.post('/Users/login', { email, password });
-
-            console.log(">>> API Response Data:", response.data);
-
-            // Lấy object user an toàn
             const user = response.data.user || response.data.User;
             const role = user?.role || user?.Role || '';
-
-            console.log(">>> Detected User Role:", role);
 
             localStorage.setItem('token', response.data.token || response.data.Token);
             localStorage.setItem('userName', user?.name || user?.Name);
             localStorage.setItem('role', role);
             sessionStorage.removeItem('dueAlertShownFor');
 
-            toast.success(`Login successful! Role: ${role}`);
+            toast.success(`Login successful!`);
 
-            // So sánh role (Chuyển về chữ thường để tránh lỗi hoa/thường)
             if (role.toString().toLowerCase() === 'admin') {
-                console.log(">>> Navigating to Admin Dashboard...");
                 navigate('/admin/dashboard');
             } else {
-                console.log(">>> Navigating to User Dashboard...");
                 navigate('/dashboard');
             }
         } catch (error) {
-            console.error(">>> Login Error Catch Block:", error);
-
-            // Bắt message lỗi từ Backend
             const errorMessage =
                 error.response?.data?.message ||
                 (typeof error.response?.data === 'string' ? error.response.data : null) ||
                 "An error occurred during login!";
-
-            console.log(">>> Error Message to Display:", errorMessage);
-            toast.error(`Lỗi: ${errorMessage}`);
+            toast.error(errorMessage);
         }
     };
+
     const handleForgotPassword = async (e) => {
         e.preventDefault();
         setIsLoading(true);
         try {
             const response = await api.post('/Users/forgot-password', { email: forgotEmail });
-
-            // Hiển thị thông báo thành công từ backend
-            toast.success(response.data.message || 'Email hướng dẫn đã được gửi!');
+            toast.success(response.data.message || 'Password reset instructions have been sent to your email!');
             setIsForgotMode(false);
             setForgotEmail('');
         } catch (error) {
             const errorMessage = error.response?.data?.message
                 || (typeof error.response?.data === 'string' ? error.response.data : null)
-                || 'Có lỗi xảy ra khi gửi yêu cầu!';
+                || 'An error occurred while submitting your request!';
             toast.error(errorMessage);
         } finally {
             setIsLoading(false);
@@ -104,67 +60,107 @@ const Login = () => {
     };
 
     return (
-        <div>
-            <div className='containerLogin'>
-                <div className='headerLogin'>
+        <div className="fin-login-page">
+            <div className="fin-login-card">
+                
+                {/* --- LEFT BRAND BANNER --- */}
+                <div className="fin-login-banner">
+                    <div className="brand-logo">
+                        <i className="bi bi-wallet2"></i> FINWEB
+                    </div>
+                    <div className="banner-content">
+                        <h2>Personal Finance</h2>
+                        <p>Manage cash flow intelligently, track the 6 Financial Jars system, and optimize your investment plans.</p>
+                    </div>
+                    <div className="banner-footer">
+                        © 2026 Personal Finance Manager
+                    </div>
+                </div>
 
+                {/* --- RIGHT FORM SECTION --- */}
+                <div className="fin-login-form-wrapper">
                     {isForgotMode ? (
-                        /* ================= FORM QUÊN MẬT KHẨU ================= */
+                        /* FORGOT PASSWORD FORM */
                         <form onSubmit={handleForgotPassword}>
-                            <div className='text'>Forgot Password</div>
-                            <div className='underline'></div>
-                            <p className="text-center text-muted mt-3 mb-1" style={{ fontSize: '14px' }}>
-                                Enter your email to receive a password reset link. If the email exists in our system, you will receive instructions to reset your password.
+                            <h3 className="form-header-title">Reset Password</h3>
+                            <p className="form-header-subtitle">
+                                Enter your email address to receive password reset instructions.
                             </p>
-                            <div className='inputs mt-0'>
-                                <div className='input'>
+
+                            <div className="fin-input-group">
+                                <label>Email Address</label>
+                                <div className="fin-input-box">
                                     <i className="bi bi-envelope-at-fill"></i>
-                                    <input type="email" placeholder="Enter your email" value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} required />
+                                    <input 
+                                        type="email" 
+                                        placeholder="your.email@example.com" 
+                                        value={forgotEmail} 
+                                        onChange={(e) => setForgotEmail(e.target.value)} 
+                                        required 
+                                    />
                                 </div>
                             </div>
 
-                            <div className='submit-container mt-4'>
-                                {/* Sửa lại CSS để button ăn khớp với class submit */}
-                                <button type="submit" className='submit' disabled={isLoading} style={{ border: 'none', fontFamily: 'inherit' }}>
-                                    {isLoading ? 'Sending...' : 'Send Request'}
+                            <div className="d-flex flex-column gap-3 mt-4">
+                                <button type="submit" className="btn-fin-primary" disabled={isLoading}>
+                                    {isLoading ? 'Processing...' : 'Send Reset Link'}
                                 </button>
-
-                                <div className='submit gray' onClick={() => setIsForgotMode(false)} style={{ cursor: 'pointer' }}>
+                                <button type="button" className="btn-fin-secondary" onClick={() => setIsForgotMode(false)}>
                                     Back to Login
-                                </div>
+                                </button>
                             </div>
                         </form>
                     ) : (
-                        /* ================= FORM ĐĂNG NHẬP ================= */
+                        /* LOGIN FORM */
                         <form onSubmit={handleLogin}>
-                            <div className='text'>Login</div>
-                            <div className='underline'></div>
-                            <div className='inputs'>
-                                <div className='input'>
+                            <h3 className="form-header-title">Welcome Back! 👋</h3>
+                            <p className="form-header-subtitle">Log in to manage your finances today.</p>
+
+                            <div className="fin-input-group">
+                                <label>Email Address</label>
+                                <div className="fin-input-box">
                                     <i className="bi bi-envelope-at-fill"></i>
-                                    <input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                                    <input 
+                                        type="email" 
+                                        placeholder="your.email@example.com" 
+                                        value={email} 
+                                        onChange={(e) => setEmail(e.target.value)} 
+                                        required 
+                                    />
                                 </div>
-                                <div className='input'>
+                            </div>
+
+                            <div className="fin-input-group">
+                                <div className="d-flex justify-content-between align-items-center mb-1">
+                                    <label className="m-0">Password</label>
+                                    <span className="forgot-link" style={{ cursor: 'pointer' }} onClick={() => setIsForgotMode(true)}>
+                                        Forgot password?
+                                    </span>
+                                </div>
+                                <div className="fin-input-box">
                                     <i className="bi bi-lock-fill"></i>
-                                    <input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                                    <input 
+                                        type="password" 
+                                        placeholder="••••••••" 
+                                        value={password} 
+                                        onChange={(e) => setPassword(e.target.value)} 
+                                        required 
+                                    />
                                 </div>
                             </div>
 
-                            <div className='forgot-password' style={{ cursor: 'pointer', textAlign: 'right', marginTop: '10px' }} onClick={() => setIsForgotMode(true)}>
-                                Forgot Password? <span style={{ color: '#3182ce', fontWeight: 'bold' }}>Click here!</span>
-                            </div>
-
-                            <div className='submit-container'>
-                                <button type="submit" className='submit' style={{ border: 'none', fontFamily: 'inherit' }}>
-                                    Login
+                            <div className="d-flex flex-column gap-3 mt-4">
+                                <button type="submit" className="btn-fin-primary">
+                                    Log In
                                 </button>
-                                <div className='submit gray' onClick={() => navigate('/register')} style={{ cursor: 'pointer' }}>
-                                    Register
-                                </div>
+                                <button type="button" className="btn-fin-secondary" onClick={() => navigate('/register')}>
+                                    Don't have an account? Register now
+                                </button>
                             </div>
                         </form>
                     )}
                 </div>
+
             </div>
         </div>
     );
