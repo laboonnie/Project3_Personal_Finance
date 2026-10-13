@@ -33,6 +33,8 @@ public partial class PersonalFinanceDbContext : DbContext
     public virtual DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
     public virtual DbSet<Notification> Notifications { get; set; }
     public virtual DbSet<BudgetCarriedOver> BudgetCarriedOvers { get; set; }
+    public virtual DbSet<TransactionEditHistory> TransactionEditHistories { get; set; }
+    public virtual DbSet<RemainingAction> RemainingActions { get; set; }
 
 
     //    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
@@ -225,6 +227,96 @@ public partial class PersonalFinanceDbContext : DbContext
             entity.HasOne(d => d.Jar).WithMany()
                 .HasForeignKey(d => d.JarId)
                 .OnDelete(DeleteBehavior.ClientSetNull);
+        });
+        modelBuilder.Entity<TransactionEditHistory>(entity =>
+        {
+        entity.ToTable("RemainingActions");
+
+            entity.HasKey(e => e.Id);
+
+            entity.ToTable("TransactionEditHistory");
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.OldAmount)
+                .HasColumnType("decimal(18, 2)");
+
+            entity.Property(e => e.NewAmount)
+                .HasColumnType("decimal(18, 2)");
+
+            entity.Property(e => e.OldType)
+                .HasMaxLength(20)
+                .IsRequired();
+
+            entity.Property(e => e.NewType)
+                .HasMaxLength(20)
+                .IsRequired();
+
+            entity.Property(e => e.OldNote)
+                .HasMaxLength(500);
+
+            entity.Property(e => e.NewNote)
+                .HasMaxLength(500);
+
+            entity.Property(e => e.OldTransactionDate)
+                .HasColumnType("date");
+
+            entity.Property(e => e.NewTransactionDate)
+                .HasColumnType("date");
+
+            entity.Property(e => e.EditedAt)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime");
+
+            entity.HasOne(d => d.Transaction)
+                .WithMany()
+                .HasForeignKey(d => d.TransactionId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+
+            entity.HasOne(d => d.User)
+                .WithMany()
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+        });
+        modelBuilder.Entity<RemainingAction>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Amount)
+                .HasColumnType("decimal(18, 2)");
+
+            entity.Property(e => e.ActionType)
+                .HasMaxLength(50)
+                .IsRequired();
+
+            entity.Property(e => e.CreatedAt)
+                .HasDefaultValueSql("(getdate())")
+                .HasColumnType("datetime");
+
+            entity.HasOne(d => d.User)
+                .WithMany()
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.ClientSetNull);
+
+            entity.HasOne(d => d.TargetJar)
+                .WithMany()
+                .HasForeignKey(d => d.TargetJarId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(d => d.Goal)
+                .WithMany()
+                .HasForeignKey(d => d.GoalId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(d => d.Debt)
+                .WithMany()
+                .HasForeignKey(d => d.DebtId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(d => d.Investment)
+                .WithMany()
+                .HasForeignKey(d => d.InvestmentId)
+                .OnDelete(DeleteBehavior.SetNull);
         });
 
         OnModelCreatingPartial(modelBuilder);

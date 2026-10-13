@@ -232,30 +232,182 @@ namespace Project3_Personal_Finance.Controllers
                 return StatusCode(500, new { message = ex.Message });
             }
         }
+        // ==================== GET ALL TRANSACTIONS ====================
+        [HttpGet]
+        public async Task<IActionResult> GetAllTransactions()
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
 
-        // ==================== DELETE ====================
-        //[HttpDelete("{id}")]
-        //public async Task<IActionResult> DeleteTransaction(int id)
-        //{
-        //    try
-        //    {
-        //        var userId = GetCurrentUserId();
+                var data = await _context.Transactions
+                    .Include(t => t.Category)
+                    .ThenInclude(c => c.Jar)
+                    .Where(t => t.UserId == userId)
+                    .OrderByDescending(t => t.TransactionDate)
+                    .ThenByDescending(t => t.Id)
+                    .Select(t => new
+                    {
+                        t.Id,
+                        t.Amount,
+                        t.Type,
+                        t.TransactionDate,
+                        t.Note,
 
-        //        var transaction = await _context.Transactions
-        //            .FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
+                        CategoryId = t.CategoryId,
+                        CategoryName = t.Category.Name,
 
-        //        if (transaction == null)
-        //            return NotFound(new { message = "Transaction not found" });
+                        JarId = t.Category.JarId,
+                        JarName = t.Category.Jar.JarName,
+                        JarCode = t.Category.Jar.JarCode
+                    })
+                    .ToListAsync();
 
-        //        _context.Transactions.Remove(transaction);
-        //        await _context.SaveChangesAsync();
+                return Ok(data);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = ex.Message });
+            }
+        }
+        // ==================== UPDATE ====================
+        [HttpPut("{id}")]
+        public async Task<IActionResult> UpdateTransaction(
+            int id,
+            [FromBody] TransactionCreateDto request)
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
 
-        //        return Ok(new { message = "Delete successfully" });
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        return StatusCode(500, new { message = ex.Message });
-        //    }
-        //}
-    }
-}
+                // 1. Tìm transaction của user
+                var transaction = await _context.Transactions
+                    .FirstOrDefaultAsync(t =>
+                        t.Id == id &&
+                        t.UserId == userId);
+
+                if (transaction == null)
+                {
+                    return NotFound(new
+                    {
+                        message = "Transaction not found"
+                    });
+                }
+
+                // 2. Tìm transaction được tạo gần nhất
+                // Dùng Id, KHÔNG dùng TransactionDate
+                var latestTransactionId = await _context.Transactions
+                    .Where(t => t.UserId == userId)
+                    .MaxAsync(t => t.Id);
+
+                // 3. Chỉ transaction mới nhất được sửa
+                if (transaction.Id != latestTransactionId)
+                {
+                    return BadRequest(new
+                    {
+                        message = "Only the latest transaction can be edited."
+                    });
+                }
+
+                // 4. Validate dữ liệu
+                if (request.Amount <= 0)
+                {
+                    return BadRequest(new
+                    {
+                        message = "Amount must be greater than 0."
+                    });
+                }
+
+                if (request.Type != "Income" && request.Type != "Expense")
+                {
+                    return BadRequest(new
+                    {
+                        message = "Transaction type must be Income or Expense."
+                    });
+                }
+
+                var category = await _context.Categories
+                    .FirstOrDefaultAsync(c => c.Id == request.CategoryId);
+
+                if (category == null)
+                {
+                    return BadRequest(new
+                    {
+                        message = "Category not found."
+                    });
+                }
+
+                // Category phải đúng với Type
+                if (!string.Equals(
+                        category.Type,
+                        request.Type,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    return BadRequest(new
+                    {
+                        message = "Category does not match transaction type."
+                    });
+                }
+
+                // Không sử dụng bảng TransactionEditHistory.
+                // 6. Update transaction
+                transaction.CategoryId = request.CategoryId;
+                transaction.Amount = request.Amount;
+                transaction.Type = request.Type;
+                transaction.TransactionDate = request.TransactionDate;
+                transaction.Note = request.Note;
+
+                // Nếu Category quyết định Jar thì đồng bộ JarId
+                transaction.JarId = category.JarId;
+
+                // 7. Tạo notification
+                var notification = new Notification
+                {
+                    UserId = userId,
+                    Title = "Transaction updated",
+                    Message = $"Transaction #{transaction.Id} was updated successfully.",
+                    Type = "TRANSACTION_EDITED",
+                    IsRead = false,
+                    CreatedAt = DateTime.Now
+                };
+
+                _context.Notifications.Add(notification);
+
+                // Lưu Transaction và Notification cùng một SaveChanges
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    message = "Transaction updated successfully",
+                    transactionId = transaction.Id
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    message = ex.Message
+                });
+            }
+        }
+        // ==================== EDIT HISTORY ====================
+        // Chưa hỗ trợ lịch sử chỉnh sửa đầy đủ khi giữ nguyên 11 bảng gốc.
+        [HttpGet("{id}/edit-history")]
+        public async Task<IActionResult> GetEditHistory(int id)
+        {
+            var userId = GetCurrentUserId();
+            var exists = await _context.Transactions
+                .AnyAsync(t => t.Id == id && t.UserId == userId);
+
+            if (!exists)
+                return NotFound(new { message = "Transaction not found." });
+
+            return StatusCode(501, new
+            {
+                message = "Edit history is not supported with the original database schema."
+            });
+        }
+
+            } // đóng TransactionsController
+
+        } // đóng namespace
