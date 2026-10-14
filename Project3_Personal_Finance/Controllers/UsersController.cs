@@ -127,8 +127,8 @@ namespace Project3_Personal_Finance.Controllers
             // 3. Gửi Email kèm Link khôi phục
             try
             {
-                string fromEmail = _configuration["EmailSettings:FromEmail"] ?? "viethoangb05@gmail.com";
-                string appPassword = (_configuration["EmailSettings:AppPassword"] ?? "madfpndorzbodjj").Replace(" ", "");
+                string fromEmail = _configuration["EmailSettings:FromEmail"] ?? "thao.ntp.2424@aptechlearning.edu.vn";
+                string appPassword = (_configuration["EmailSettings:AppPassword"] ?? "oprd csay ecmh yeut").Replace(" ", "");
 
                 // Đường dẫn trên giao diện React dẫn tới trang Reset Password
                 string resetLink = $"http://localhost:3000/reset-password?token={resetToken}";
