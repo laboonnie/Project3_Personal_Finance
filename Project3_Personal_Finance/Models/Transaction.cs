@@ -31,6 +31,14 @@ public partial class Transaction
 
     public string? Location { get; set; }
 
+    public decimal? Quantity { get; set; }
+
+    public decimal? UnitPrice { get; set; }
+
+    public decimal? RealizedProfitLoss { get; set; }
+
+    public Guid? IdempotencyKey { get; set; }
+
     [JsonIgnore]
 
     public virtual Category? Category { get; set; } = null!;

@@ -70,10 +70,10 @@ namespace Project3_Personal_Finance.Controllers
             var jarNames = await _context.FinancialJars.AsNoTracking()
                 .ToDictionaryAsync(j => j.Id, j => j.JarName);
             var scheduleRecords = await _context.Notifications.AsNoTracking()
-                .Where(n => n.UserId == userId && n.Type == "GOAL_SCHEDULE")
+                .Where(n => n.UserId == userId && n.Type == GoalPaymentSchedule.NotificationType)
                 .ToListAsync();
             var schedules = scheduleRecords
-                .Select(n => (Notification: n, GoalId: ParseScheduleGoalId(n.Title)))
+                .Select(n => (Notification: n, GoalId: GoalPaymentSchedule.ParseGoalId(n.Title)))
                 .Where(x => x.GoalId != null)
                 .ToDictionary(
                     x => x.GoalId!.Value,
@@ -207,12 +207,13 @@ namespace Project3_Personal_Finance.Controllers
 
                 try
                 {
-                    var scheduleTitle = $"GoalSchedule:{goal.Id}";
+                    var scheduleTitle = GoalPaymentSchedule.GetTitle(goal.Id);
                     var failureTitle = AutoPayHelper.FailedPrefix
                         + AutoPayHelper.EntityTitleId(AutoPayHelper.GoalType, goal.Id);
                     var relatedNotifications = await _context.Notifications
                         .Where(notification => notification.UserId == userId
-                            && ((notification.Type == "GOAL_SCHEDULE" && notification.Title == scheduleTitle)
+                            && ((notification.Type == GoalPaymentSchedule.NotificationType
+                                    && notification.Title == scheduleTitle)
                                 || (notification.Type == AutoPayHelper.GoalType
                                     && notification.Title == failureTitle)))
                         .ToListAsync();
@@ -272,8 +273,8 @@ namespace Project3_Personal_Finance.Controllers
                         goal.Status = "completed";
                         var scheduleRecord = await _context.Notifications.FirstOrDefaultAsync(notification =>
                             notification.UserId == userId
-                            && notification.Type == "GOAL_SCHEDULE"
-                            && notification.Title == $"GoalSchedule:{goal.Id}");
+                            && notification.Type == GoalPaymentSchedule.NotificationType
+                            && notification.Title == GoalPaymentSchedule.GetTitle(goal.Id));
                         if (scheduleRecord != null)
                         {
                             var schedule = GoalPaymentSchedule.Parse(scheduleRecord.Message);
@@ -317,11 +318,13 @@ namespace Project3_Personal_Finance.Controllers
 
         private async Task<string?> ApplyScheduleAsync(int userId, Goal goal, GoalUpsertRequest request)
         {
-            var title = $"GoalSchedule:{goal.Id}";
+            var title = GoalPaymentSchedule.GetTitle(goal.Id);
             var existing = goal.Id == 0
                 ? null
                 : await _context.Notifications.FirstOrDefaultAsync(n =>
-                    n.UserId == userId && n.Type == "GOAL_SCHEDULE" && n.Title == title);
+                    n.UserId == userId
+                    && n.Type == GoalPaymentSchedule.NotificationType
+                    && n.Title == title);
             var failedTitle = AutoPayHelper.FailedPrefix
                 + AutoPayHelper.EntityTitleId(AutoPayHelper.GoalType, goal.Id);
             var failures = await _context.Notifications
@@ -386,13 +389,5 @@ namespace Project3_Personal_Finance.Controllers
             return null;
         }
 
-        private static int? ParseScheduleGoalId(string title)
-        {
-            const string prefix = "GoalSchedule:";
-            return title.StartsWith(prefix, StringComparison.Ordinal)
-                && int.TryParse(title[prefix.Length..], out var id)
-                    ? id
-                    : null;
-        }
     }
 }

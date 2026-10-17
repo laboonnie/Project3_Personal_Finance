@@ -125,6 +125,7 @@ public partial class PersonalFinanceDbContext : DbContext
             entity.Property(e => e.AssetName).HasMaxLength(200);
             entity.Property(e => e.AssetType).HasMaxLength(100);
             entity.Property(e => e.CurrentValue).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.Quantity).HasColumnType("decimal(18, 6)");
 
             entity.HasOne(d => d.User).WithMany(p => p.Investments)
                 .HasForeignKey(d => d.UserId)
@@ -140,8 +141,14 @@ public partial class PersonalFinanceDbContext : DbContext
             entity.HasKey(e => e.Id).HasName("PK__Transact__3214EC07D28B0277");
 
             entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.Quantity).HasColumnType("decimal(18, 6)");
+            entity.Property(e => e.UnitPrice).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.RealizedProfitLoss).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.Note).HasMaxLength(300);
             entity.Property(e => e.Type).HasMaxLength(20);
+            entity.HasIndex(e => e.IdempotencyKey)
+                .IsUnique()
+                .HasFilter("[IdempotencyKey] IS NOT NULL");
 
             entity.HasOne(d => d.Category).WithMany(p => p.Transactions)
                 .HasForeignKey(d => d.CategoryId)
