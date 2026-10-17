@@ -19,6 +19,7 @@ public partial class Investment
 
     public DateOnly? InvestDate { get; set; }
     public int? JarId { get; set; }
+    public decimal? Quantity { get; set; }
 
     public virtual User User { get; set; } = null!;
     public virtual FinancialJar? Jar { get; set; }

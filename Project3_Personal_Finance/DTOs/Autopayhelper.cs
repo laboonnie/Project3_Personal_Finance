@@ -10,7 +10,7 @@ public static class AutoPayHelper
     public const string GoalType = "GOAL_DUE";
     public const string PaidPrefix = "Auto-paid: ";
     public const string FailedPrefix = "Auto-pay failed: ";
-    private const string GoalScheduleType = "GOAL_SCHEDULE";
+    private const string GoalScheduleType = GoalPaymentSchedule.NotificationType;
     private static readonly ConcurrentDictionary<int, SemaphoreSlim> UserLocks = new();
 
     public static async Task RunForUserAsync(PersonalFinanceDbContext context, int userId)
@@ -79,7 +79,7 @@ public static class AutoPayHelper
             .Select(notification => notification.Title)
             .ToListAsync();
         var scheduledGoalIds = scheduleTitles
-            .Select(ParseScheduleGoalId)
+            .Select(GoalPaymentSchedule.ParseGoalId)
             .Where(id => id.HasValue)
             .Select(id => id!.Value)
             .ToHashSet();
@@ -129,7 +129,7 @@ public static class AutoPayHelper
 
         foreach (var record in records)
         {
-            var goalId = ParseScheduleGoalId(record.Title);
+            var goalId = GoalPaymentSchedule.ParseGoalId(record.Title);
             var schedule = GoalPaymentSchedule.Parse(record.Message);
             if (goalId == null || schedule is not { Enabled: true }
                 || schedule.NextPaymentDate == null
@@ -243,7 +243,7 @@ public static class AutoPayHelper
                 var scheduleRecord = await context.Notifications.FirstAsync(notification =>
                     notification.UserId == userId
                     && notification.Type == GoalScheduleType
-                    && notification.Title == $"GoalSchedule:{entityId}");
+                    && notification.Title == GoalPaymentSchedule.GetTitle(entityId));
                 scheduleRecord.Message = schedule.Serialize();
             }
 
@@ -280,16 +280,17 @@ public static class AutoPayHelper
 
         if (schedule != null && schedule.PendingPaymentDate == null)
         {
-            var next = GoalPaymentSchedule.GetNextDate(schedule, paymentDate);
-            while (next != null && next <= DateOnly.FromDateTime(DateTime.Today))
-                next = GoalPaymentSchedule.GetNextDate(schedule, next.Value);
+            var next = GoalPaymentSchedule.GetNextPaymentDate(
+                schedule,
+                paymentDate,
+                DateOnly.FromDateTime(DateTime.Today));
             schedule.NextPaymentDate = next;
             schedule.Enabled = next != null;
 
             var scheduleRecord = await context.Notifications.FirstAsync(notification =>
                 notification.UserId == userId
                 && notification.Type == GoalScheduleType
-                && notification.Title == $"GoalSchedule:{entityId}");
+                && notification.Title == GoalPaymentSchedule.GetTitle(entityId));
             scheduleRecord.Message = schedule.Serialize();
         }
 
@@ -328,12 +329,4 @@ public static class AutoPayHelper
         return (token[..separator] == "D" ? "Debt" : "Goal", id);
     }
 
-    private static int? ParseScheduleGoalId(string title)
-    {
-        const string prefix = "GoalSchedule:";
-        return title.StartsWith(prefix, StringComparison.Ordinal)
-            && int.TryParse(title[prefix.Length..], out var id)
-                ? id
-                : null;
-    }
 }

@@ -1,46 +1,303 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import api from '../../api/api';
 import InvestmentForm from './InvestmentForm';
+import GoldTradeForm from './GoldTradeForm';
 import { toast } from 'react-toastify';
+import {
+    Area,
+    AreaChart,
+    CartesianGrid,
+    Cell,
+    Pie,
+    PieChart,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis
+} from 'recharts';
 import './Investments.css';
+
+const RANGE_OPTIONS = [
+    { label: '1T', value: '1M' },
+    { label: '6T', value: '6M' },
+    { label: '1N', value: '1Y' },
+    { label: 'YTD', value: 'YTD' },
+    { label: 'Tất cả', value: 'ALL' }
+];
+const CHART_COLORS = ['#4f7df3', '#11b981', '#f59e0b', '#9b6bdf', '#ec698b', '#20a4ad'];
 
 const InvestmentList = () => {
     const [investments, setInvestments] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [loadError, setLoadError] = useState('');
     const [showForm, setShowForm] = useState(false);
+    const [initialAsset, setInitialAsset] = useState(null);
     const [refresh, setRefresh] = useState(false);
+    const [chartRange, setChartRange] = useState('1Y');
+    const [compositionMode, setCompositionMode] = useState('type');
+    const [popularStocks, setPopularStocks] = useState([]);
+    const [marketLoading, setMarketLoading] = useState(true);
+    const [marketError, setMarketError] = useState('');
+    const [marketWarning, setMarketWarning] = useState('');
+    const [marketRefresh, setMarketRefresh] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchResults, setSearchResults] = useState([]);
+    const [searchLoading, setSearchLoading] = useState(false);
+    const [searchError, setSearchError] = useState('');
+    const [searchWarning, setSearchWarning] = useState('');
+    const [selectedStock, setSelectedStock] = useState(null);
+    const [stockDetails, setStockDetails] = useState(null);
+    const [detailLoading, setDetailLoading] = useState(false);
+    const [detailError, setDetailError] = useState('');
+    const [goldQuotes, setGoldQuotes] = useState([]);
+    const [selectedGold, setSelectedGold] = useState(null);
+    const [goldMarketLoading, setGoldMarketLoading] = useState(true);
+    const [goldMarketError, setGoldMarketError] = useState('');
+    const [goldMarketRefresh, setGoldMarketRefresh] = useState(false);
+    const [goldTradingAvailable, setGoldTradingAvailable] = useState(false);
+    const [goldTradingUnavailableMessage, setGoldTradingUnavailableMessage] = useState(
+        'Giao dịch vàng đang tạm khóa vì schema database hiện tại không lưu đủ dữ liệu giao dịch.'
+    );
+    const [showGoldForm, setShowGoldForm] = useState(false);
 
     // State cho modal bán tài sản
     const [sellTarget, setSellTarget] = useState(null); 
     const [allowedJars, setAllowedJars] = useState([]); // Danh sách hũ cho phép nhận tiền (FFA & LTS)
     const [selectedJarId, setSelectedJarId] = useState(''); // Hũ người dùng chọn để rút tiền về
+    const [sellQuantity, setSellQuantity] = useState('');
+    const [sellIdempotencyKey, setSellIdempotencyKey] = useState('');
 
     const fetchInvestments = useCallback(async () => {
         setLoading(true);
+        setLoadError('');
         try {
             const res = await api.get('/Investments');
             setInvestments(res.data);
-            
-            // Gọi API lấy danh sách Hũ cho phép (FFA & LTS)
+        } catch (error) {
+            const status = error.response?.status;
+            const message = status
+                ? `Không thể tải danh mục đầu tư (HTTP ${status}).`
+                : 'Không thể kết nối tới API danh mục đầu tư.';
+            setLoadError(message);
+            toast.error(message);
+            setLoading(false);
+            return;
+        }
+
+        try {
             const jarRes = await api.get('/Investments/allowed-jars');
             setAllowedJars(jarRes.data);
             if (jarRes.data.length > 0) {
                 setSelectedJarId(jarRes.data[0].jarId); // Mặc định chọn hũ đầu tiên
             }
-
-        } catch (error) { 
-            toast.error('Lỗi khi tải dữ liệu thị trường & hũ đầu tư'); 
-        } finally { 
+        } catch (error) {
+            const status = error.response?.status;
+            toast.error(status
+                ? `Không thể tải hũ nhận tiền bán tài sản (HTTP ${status}).`
+                : 'Không thể kết nối để tải hũ nhận tiền bán tài sản.');
+        } finally {
             setLoading(false); 
         }
     }, []);
 
     useEffect(() => { fetchInvestments(); }, [fetchInvestments, refresh]);
 
+    useEffect(() => {
+        const controller = new AbortController();
+        setMarketLoading(true);
+        setMarketError('');
+        api.get('/Investments/market/popular', { signal: controller.signal })
+            .then(res => {
+                setPopularStocks(res.data.stocks);
+                setSelectedStock(current => current || res.data.stocks[0] || null);
+                setMarketError('');
+                setMarketWarning(res.data.unavailableCount > 0
+                    ? `${res.data.unavailableCount} mã chưa có báo giá mới từ Yahoo Finance.`
+                    : '');
+            })
+            .catch(error => {
+                if (error.code === 'ERR_CANCELED') return;
+                setMarketError(error.response?.data || 'Không thể tải bảng giá cổ phiếu từ Yahoo Finance.');
+            })
+            .finally(() => {
+                if (!controller.signal.aborted) setMarketLoading(false);
+            });
+        return () => controller.abort();
+    }, [marketRefresh]);
+
+    useEffect(() => {
+        const controller = new AbortController();
+        setGoldMarketLoading(true);
+        setGoldMarketError('');
+        setGoldTradingAvailable(false);
+        setShowGoldForm(false);
+        api.get('/Investments/gold-market', { signal: controller.signal })
+            .then(res => {
+                setGoldQuotes(res.data.items);
+                setSelectedGold(current =>
+                    res.data.items.find(item => item.assetName === current?.assetName)
+                    || res.data.items[0]
+                    || null);
+                setGoldTradingAvailable(res.data.tradingAvailable === true);
+                setGoldTradingUnavailableMessage(
+                    res.data.tradingUnavailableReason
+                    || 'Giao dịch vàng đang tạm khóa vì schema database hiện tại không lưu đủ dữ liệu giao dịch.'
+                );
+                if (res.data.tradingAvailable !== true) setShowGoldForm(false);
+            })
+            .catch(error => {
+                if (error.code === 'ERR_CANCELED') return;
+                setGoldQuotes([]);
+                setSelectedGold(null);
+                setGoldTradingAvailable(false);
+                setShowGoldForm(false);
+                setGoldMarketError(error.response?.data || 'Không thể tải giá vàng thực tế từ Giavang.org.');
+            })
+            .finally(() => {
+                if (!controller.signal.aborted) setGoldMarketLoading(false);
+            });
+        return () => controller.abort();
+    }, [goldMarketRefresh]);
+
+    useEffect(() => {
+        const query = searchQuery.trim();
+        if (query.length < 2) {
+            setSearchResults([]);
+            setSearchError('');
+            setSearchWarning('');
+            setSearchLoading(false);
+            return undefined;
+        }
+
+        setSearchResults([]);
+        setSearchError('');
+        setSearchWarning('');
+        setSearchLoading(true);
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+            setSearchLoading(true);
+            setSearchError('');
+            setSearchWarning('');
+            api.get('/Investments/market/search', { params: { q: query }, signal: controller.signal })
+                .then(res => {
+                    setSearchResults(res.data.stocks);
+                    setSearchWarning(res.data.unavailableCount > 0
+                        ? `${res.data.unavailableCount} kết quả không có báo giá để hiển thị.`
+                        : '');
+                })
+                .catch(error => {
+                    if (error.code === 'ERR_CANCELED') return;
+                    setSearchResults([]);
+                    setSearchError(error.response?.data || 'Không thể tìm cổ phiếu trên Yahoo Finance.');
+                })
+                .finally(() => {
+                    if (!controller.signal.aborted) setSearchLoading(false);
+                });
+        }, 350);
+        return () => {
+            clearTimeout(timeoutId);
+            controller.abort();
+        };
+    }, [searchQuery]);
+
+    useEffect(() => {
+        if (!selectedStock) return undefined;
+        const controller = new AbortController();
+        setStockDetails(null);
+        setDetailLoading(true);
+        setDetailError('');
+        api.get(`/Investments/market/${encodeURIComponent(selectedStock.symbol)}`, { signal: controller.signal })
+            .then(res => setStockDetails(res.data))
+            .catch(error => {
+                if (error.code === 'ERR_CANCELED') return;
+                setDetailError(error.response?.data || 'Không thể tải thông tin và lịch sử giá cổ phiếu.');
+            })
+            .finally(() => {
+                if (!controller.signal.aborted) setDetailLoading(false);
+            });
+        return () => controller.abort();
+    }, [selectedStock]);
+
     const formatMoney = (amount) => new Intl.NumberFormat('vi-VN').format(amount || 0) + 'đ';
+    const handleSelectStock = (stock) => {
+        setSelectedStock(stock);
+        setSearchQuery('');
+        setSearchResults([]);
+    };
+    const handleStartStockInvestment = () => {
+        if (!stockDetails) return;
+        setShowGoldForm(false);
+        setInitialAsset(stockDetails);
+        setShowForm(true);
+    };
+    const pricedInvestments = investments.filter(inv => inv.isMarketPriced && Number.isFinite(Number(inv.currentValue)));
+    const totalInvested = investments.reduce((total, inv) => total + Number(inv.amountInvested || 0), 0);
+    const pricedInvested = pricedInvestments.reduce((total, inv) => total + Number(inv.amountInvested || 0), 0);
+    const totalCurrentValue = pricedInvestments.reduce((total, inv) => total + Number(inv.currentValue), 0);
+    const realizedProfitOrLoss = investments.reduce((total, inv) => total + Number(inv.realizedProfitLoss || 0), 0);
+    const unrealizedProfitOrLoss = totalCurrentValue - pricedInvested;
+    const totalProfitOrLoss = unrealizedProfitOrLoss + realizedProfitOrLoss;
+    const realizedCostBasis = investments.reduce((total, inv) => total + Number(inv.realizedCostBasis || 0), 0);
+    const roiCapital = pricedInvested + realizedCostBasis;
+    const totalRoi = roiCapital > 0 ? (totalProfitOrLoss / roiCapital) * 100 : 0;
+    const portfolioHistory = useMemo(() => {
+        const dates = [...new Set(pricedInvestments.flatMap(inv =>
+            (inv.marketHistory || []).map(point => point.date)
+        ))].sort();
+
+        return dates.map(date => {
+            const value = pricedInvestments.reduce((total, inv) => {
+                let point = null;
+                (inv.marketHistory || []).forEach(item => {
+                    if (item.date <= date) point = item;
+                });
+                if (!point || date < inv.investDate || !inv.marketPurchasePrice) return total;
+                return total + Number(inv.amountInvested || 0) / Number(inv.marketPurchasePrice) * Number(point.close);
+            }, 0);
+
+            return {
+                date,
+                value: Math.round(value),
+                label: new Date(`${date}T00:00:00`).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })
+            };
+        });
+    }, [pricedInvestments]);
+    const visiblePortfolioHistory = useMemo(() => {
+        if (chartRange === 'ALL' || portfolioHistory.length === 0) return portfolioHistory;
+
+        const now = new Date();
+        const start = new Date(now);
+        if (chartRange === 'YTD') {
+            start.setMonth(0, 1);
+        } else {
+            start.setMonth(start.getMonth() - (chartRange === '1M' ? 1 : chartRange === '6M' ? 6 : 12));
+        }
+
+        const firstVisibleIndex = portfolioHistory.findIndex(point => new Date(`${point.date}T00:00:00`) >= start);
+        if (firstVisibleIndex < 0) return [];
+        if (firstVisibleIndex === 0) return portfolioHistory;
+        return portfolioHistory.slice(firstVisibleIndex - 1);
+    }, [chartRange, portfolioHistory]);
+    const composition = useMemo(() => {
+        const groups = new Map();
+        pricedInvestments.forEach(inv => {
+            const key = compositionMode === 'type'
+                ? (inv.assetType || 'Khác')
+                : (inv.marketSymbol || inv.assetName || 'Tài sản');
+            groups.set(key, (groups.get(key) || 0) + Number(inv.currentValue));
+        });
+
+        return [...groups.entries()]
+            .map(([name, value]) => ({ name, value: Math.round(value) }))
+            .sort((first, second) => second.value - first.value);
+    }, [compositionMode, pricedInvestments]);
+    const compositionTotal = composition.reduce((total, item) => total + item.value, 0);
 
     const handleOpenSellModal = (inv) => {
+        if (inv.assetType === 'Vàng' && !goldTradingAvailable) return;
         setSellTarget(inv);
+        setSellQuantity(inv.assetType === 'Vàng' ? String(inv.marketQuantity || '') : '');
+        setSellIdempotencyKey(inv.assetType === 'Vàng' ? window.crypto.randomUUID() : '');
         // Ưu tiên chọn hũ ban đầu của tài sản đó nếu có trong danh sách
         if (inv.jarId && allowedJars.some(j => j.jarId === inv.jarId)) {
             setSelectedJarId(inv.jarId);
@@ -50,9 +307,36 @@ const InvestmentList = () => {
     };
 
     const handleSell = async () => {
+        if (sellTarget.assetType === 'Vàng' && !goldTradingAvailable) {
+            toast.info(goldTradingUnavailableMessage);
+            return;
+        }
         if (!selectedJarId) { 
             toast.error('Vui lòng chọn Hũ để nhận tiền rút!'); 
             return; 
+        }
+
+        if (sellTarget.assetType === 'Vàng') {
+            if (!sellQuantity || Number(sellQuantity) <= 0 || Number(sellQuantity) > Number(sellTarget.marketQuantity)) {
+                toast.error('Số lượng bán phải lớn hơn 0 và không vượt quá lượng vàng đang nắm giữ.');
+                return;
+            }
+            try {
+                const res = await api.post(`/Investments/gold/${sellTarget.id}/sell`, {
+                    quantity: Number(sellQuantity),
+                    jarId: Number(selectedJarId),
+                    idempotencyKey: sellIdempotencyKey
+                });
+                const details = res.data.transactionDetails;
+                toast.success(
+                    `Đã bán ${details.quantity} ${details.unit} ${details.assetName}, nhận ${formatMoney(details.amountReceived)}. Lãi/lỗ đã thực hiện: ${details.profitOrLoss >= 0 ? '+' : '-'}${formatMoney(Math.abs(details.profitOrLoss))}.`
+                );
+                setSellTarget(null);
+                setRefresh(previous => !previous);
+            } catch (error) {
+                toast.error(error.response?.data || 'Không thể hoàn tất giao dịch bán vàng.');
+            }
+            return;
         }
 
         try {
@@ -65,7 +349,7 @@ const InvestmentList = () => {
                     Tài sản: <b>{details.assetName}</b><br/>
                     Số tiền rút về hũ <b>{details.jarName}</b>: <b>{formatMoney(details.amountReceived)}</b><br/>
                     Lời/Lỗ: <b style={{ color: details.profitOrLoss >= 0 ? '#059669' : '#dc2626' }}>
-                        {details.profitOrLoss >= 0 ? '+' : ''}{formatMoney(details.profitOrLoss)}
+                        {details.profitOrLoss >= 0 ? '+' : '-'}{formatMoney(Math.abs(details.profitOrLoss))}
                     </b><br/>
                     Số dư hũ mới: <b style={{ color: '#059669' }}>{formatMoney(details.remainingBalance)}</b><br/>
                     <small style={{ color: '#666' }}>Thời gian: {details.time}</small>
@@ -81,68 +365,564 @@ const InvestmentList = () => {
     };
 
     if (loading) return <div style={{ textAlign: 'center', padding: '40px' }}>⏳ Đang tải dữ liệu danh mục đầu tư...</div>;
+    if (loadError) {
+        return (
+            <div className="investment-load-error" role="alert">
+                <i className="bi bi-exclamation-triangle"></i>
+                <strong>{loadError}</strong>
+                <span>Không thể xác định dữ liệu danh mục. Hãy kiểm tra đăng nhập hoặc kết nối máy chủ.</span>
+                <button type="button" onClick={() => setRefresh(prev => !prev)}>Thử tải lại</button>
+            </div>
+        );
+    }
 
     return (
         <div className="investment-list-container">
             <div className="investment-header">
-                <h3>Thị trường & Danh mục Đầu tư</h3>
-                <button className="btn-new-investment" onClick={() => setShowForm(true)}>➕ Nạp / Mua Tài Sản Đầu Tư</button>
+                <div>
+                    <h3>Danh mục đầu tư</h3>
+                    <p>Theo dõi tài sản và hiệu suất đầu tư của bạn</p>
+                </div>
+                <button
+                    className="btn-new-investment"
+                    onClick={() => {
+                        setShowForm(prev => !prev);
+                        setInitialAsset(null);
+                        setShowGoldForm(false);
+                    }}
+                >
+                    <i className={`bi ${showForm ? 'bi-x-lg' : 'bi-plus-lg'}`}></i>
+                    {showForm ? 'Đóng biểu mẫu' : 'Thêm tài sản'}
+                </button>
             </div>
 
-            {showForm && (
-                <InvestmentForm 
+            <div className="investment-summary">
+                <div className="investment-summary-card summary-value">
+                    <div className="summary-icon value-icon"><i className="bi bi-wallet2"></i></div>
+                    <div className="summary-card-content">
+                        <span>Tổng giá trị danh mục</span>
+                        <strong>{pricedInvestments.length > 0 ? formatMoney(totalCurrentValue) : 'Chưa có giá'}</strong>
+                        <small>Giá thị trường của {pricedInvestments.length}/{investments.length} tài sản</small>
+                    </div>
+                </div>
+                <div className="investment-summary-card summary-capital">
+                    <div className="summary-icon capital-icon"><i className="bi bi-piggy-bank"></i></div>
+                    <div className="summary-card-content">
+                        <span>Tổng vốn đầu tư</span>
+                        <strong>{formatMoney(totalInvested)}</strong>
+                        <small>Tổng số vốn đang ghi nhận</small>
+                    </div>
+                </div>
+                <div className={`investment-summary-card summary-performance ${pricedInvested > 0 || realizedProfitOrLoss !== 0 ? (totalProfitOrLoss >= 0 ? 'profit' : 'loss') : ''}`}>
+                    <div className="summary-icon performance-icon">
+                        <i className={`bi ${totalProfitOrLoss >= 0 ? 'bi-graph-up-arrow' : 'bi-graph-down-arrow'}`}></i>
+                    </div>
+                    <div className="summary-card-content">
+                        <span>Lãi / lỗ tổng hợp</span>
+                        <strong>{pricedInvested > 0 || realizedProfitOrLoss !== 0
+                            ? `${totalProfitOrLoss >= 0 ? '+' : '-'}${formatMoney(Math.abs(totalProfitOrLoss))}`
+                            : 'Chưa có giá'}</strong>
+                        <small>
+                            Chưa thực hiện {unrealizedProfitOrLoss >= 0 ? '+' : '-'}{formatMoney(Math.abs(unrealizedProfitOrLoss))}
+                            {' · '}Đã thực hiện {realizedProfitOrLoss >= 0 ? '+' : '-'}{formatMoney(Math.abs(realizedProfitOrLoss))}
+                            {roiCapital > 0 ? ` · ROI ${totalRoi >= 0 ? '+' : ''}${totalRoi.toFixed(2)}%` : ''}
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            {investments.some(inv => !inv.isMarketPriced) && (
+                <p className="investment-market-note">
+                    Giá trị danh mục và lãi/lỗ chỉ tính trên tài sản có báo giá thị trường. Tài sản chưa có dữ liệu giá được hiển thị riêng và không được tính vào các tổng này.
+                </p>
+            )}
+
+            <section className="investment-market-browser investment-panel">
+                <div className="market-browser-heading">
+                    <div>
+                        <h4>Khám phá cổ phiếu</h4>
+                        <span>Giá thị trường Việt Nam cập nhật từ Yahoo Finance</span>
+                    </div>
+                    <label className="market-search">
+                        <i className="bi bi-search"></i>
+                        <input
+                            type="search"
+                            value={searchQuery}
+                            onChange={event => setSearchQuery(event.target.value)}
+                            placeholder="Tìm theo mã hoặc tên công ty"
+                            aria-label="Tìm cổ phiếu theo mã hoặc tên"
+                        />
+                        {searchLoading && <i className="bi bi-arrow-repeat market-search-spinner"></i>}
+                    </label>
+                </div>
+                <div className="market-browser-grid">
+                    <div className="market-stock-list">
+                        {marketError ? (
+                            <div className="market-inline-error" role="alert">
+                                <i className="bi bi-exclamation-triangle"></i>
+                                <span>{marketError}</span>
+                                <button type="button" onClick={() => setMarketRefresh(previous => !previous)}>Thử lại</button>
+                            </div>
+                        ) : marketLoading ? (
+                            <div className="market-stock-empty">Đang tải giá cổ phiếu thực tế...</div>
+                        ) : popularStocks.length === 0 ? (
+                            <div className="market-stock-empty">Yahoo Finance hiện chưa có mã phổ biến với dữ liệu giá.</div>
+                        ) : (
+                            <>
+                                <div className="market-stock-list-title">Cổ phiếu phổ biến</div>
+                                {popularStocks.map(stock => (
+                                    <button
+                                        type="button"
+                                        key={stock.symbol}
+                                        className={`market-stock-row ${selectedStock?.symbol === stock.symbol ? 'active' : ''}`}
+                                        onClick={() => handleSelectStock(stock)}
+                                    >
+                                        <span className="market-stock-symbol">{stock.symbol}</span>
+                                        <span className="market-stock-name" title={stock.name}>{stock.name}</span>
+                                        <span className="market-stock-price">
+                                            <strong>{formatMoney(stock.currentPrice)}</strong>
+                                            <small className={stock.changePercent >= 0 ? 'text-profit' : 'text-loss'}>
+                                                {stock.changePercent >= 0 ? '+' : ''}{Number(stock.changePercent).toFixed(2)}%
+                                            </small>
+                                        </span>
+                                    </button>
+                                ))}
+                                {marketWarning && <div className="market-data-warning">{marketWarning}</div>}
+                            </>
+                        )}
+
+                        {searchQuery.trim().length >= 2 && (
+                            <div className="market-search-results">
+                                <div className="market-stock-list-title">Kết quả tìm kiếm</div>
+                                {searchLoading ? (
+                                    <div className="market-stock-empty">Đang tìm trên Yahoo Finance...</div>
+                                ) : searchError ? (
+                                    <div className="market-inline-error" role="alert">{searchError}</div>
+                                ) : searchResults.length === 0 ? (
+                                    <div className="market-stock-empty">Không tìm thấy cổ phiếu Việt Nam có dữ liệu giá.</div>
+                                ) : searchResults.map(stock => (
+                                    <button
+                                        type="button"
+                                        key={stock.symbol}
+                                        className={`market-stock-row ${selectedStock?.symbol === stock.symbol ? 'active' : ''}`}
+                                        onClick={() => handleSelectStock(stock)}
+                                    >
+                                        <span className="market-stock-symbol">{stock.symbol}</span>
+                                        <span className="market-stock-name" title={stock.name}>{stock.name}</span>
+                                        <span className="market-stock-price">
+                                            <strong>{formatMoney(stock.currentPrice)}</strong>
+                                            <small className={stock.changePercent >= 0 ? 'text-profit' : 'text-loss'}>
+                                                {stock.changePercent >= 0 ? '+' : ''}{Number(stock.changePercent).toFixed(2)}%
+                                            </small>
+                                        </span>
+                                    </button>
+                                ))}
+                                {searchWarning && <div className="market-data-warning">{searchWarning}</div>}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="market-stock-detail">
+                        {!selectedStock ? (
+                            <div className="market-stock-empty">Chọn một mã cổ phiếu để xem giá và biểu đồ.</div>
+                        ) : (
+                            <>
+                                <div className="market-detail-heading">
+                                    <div>
+                                        <span className="market-detail-symbol">{selectedStock.symbol}</span>
+                                        <h5>{stockDetails?.name || selectedStock.name}</h5>
+                                    </div>
+                                    <div className="market-detail-quote">
+                                        <strong>
+                                            {stockDetails ? formatMoney(stockDetails.currentPrice) : formatMoney(selectedStock.currentPrice)}
+                                        </strong>
+                                        {stockDetails && (
+                                            <span className={stockDetails.changePercent >= 0 ? 'text-profit' : 'text-loss'}>
+                                                {stockDetails.changePercent >= 0 ? '+' : ''}{Number(stockDetails.changePercent).toFixed(2)}%
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                                {detailLoading ? (
+                                    <div className="market-detail-chart-empty">Đang tải dữ liệu chi tiết và lịch sử giá...</div>
+                                ) : detailError ? (
+                                    <div className="market-inline-error" role="alert">{detailError}</div>
+                                ) : stockDetails?.history?.length > 1 ? (
+                                    <div className="market-detail-chart">
+                                        <ResponsiveContainer width="100%" height="100%">
+                                            <AreaChart data={stockDetails.history} margin={{ top: 10, right: 8, left: 4, bottom: 0 }}>
+                                                <defs>
+                                                    <linearGradient id="stockMarketPriceFill" x1="0" y1="0" x2="0" y2="1">
+                                                        <stop offset="0%" stopColor="#4f7df3" stopOpacity={0.22} />
+                                                        <stop offset="95%" stopColor="#4f7df3" stopOpacity={0.01} />
+                                                    </linearGradient>
+                                                </defs>
+                                                <CartesianGrid vertical={false} stroke="#edf1f7" strokeDasharray="3 4" />
+                                                <XAxis
+                                                    dataKey="date"
+                                                    axisLine={false}
+                                                    tickLine={false}
+                                                    minTickGap={28}
+                                                    tick={{ fill: '#94a3b8', fontSize: 10 }}
+                                                    tickFormatter={date => new Date(`${date}T00:00:00`).toLocaleDateString('vi-VN', { month: '2-digit', year: '2-digit' })}
+                                                />
+                                                <YAxis
+                                                    axisLine={false}
+                                                    tickLine={false}
+                                                    width={64}
+                                                    tick={{ fill: '#94a3b8', fontSize: 10 }}
+                                                    tickFormatter={value => new Intl.NumberFormat('vi-VN', { notation: 'compact' }).format(value)}
+                                                />
+                                                <Tooltip
+                                                    labelFormatter={date => new Date(`${date}T00:00:00`).toLocaleDateString('vi-VN')}
+                                                    formatter={value => [formatMoney(value), 'Giá']}
+                                                />
+                                                <Area type="monotone" dataKey="close" stroke="#4f7df3" strokeWidth={2} fill="url(#stockMarketPriceFill)" activeDot={{ r: 4 }} />
+                                            </AreaChart>
+                                        </ResponsiveContainer>
+                                    </div>
+                                ) : (
+                                    <div className="market-detail-chart-empty">API chưa có đủ dữ liệu lịch sử để vẽ biểu đồ.</div>
+                                )}
+                                <div className="market-detail-footer">
+                                    <span><i className="market-live-dot"></i> Báo giá Yahoo Finance{stockDetails?.priceTime ? ` · ${stockDetails.priceTime}` : ''}</span>
+                                    <button
+                                        type="button"
+                                        className="market-invest-button"
+                                        disabled={!stockDetails || detailLoading}
+                                        onClick={handleStartStockInvestment}
+                                    >
+                                        <i className="bi bi-plus-circle"></i> Đầu tư
+                                    </button>
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            </section>
+
+            <section className="investment-market-browser investment-panel gold-market-browser">
+                <div className="market-browser-heading">
+                    <div>
+                        <h4>Giá vàng Việt Nam</h4>
+                        <span>Giá SJC tại Hồ Chí Minh qua Giavang.org · VNĐ/chỉ · Mua vào và bán ra</span>
+                    </div>
+                    <button
+                        type="button"
+                        className="gold-refresh-button"
+                        onClick={() => setGoldMarketRefresh(previous => !previous)}
+                        disabled={goldMarketLoading}
+                    >
+                        <i className={`bi ${goldMarketLoading ? 'bi-arrow-repeat market-search-spinner' : 'bi-arrow-clockwise'}`}></i>
+                        Cập nhật giá
+                    </button>
+                </div>
+                {goldMarketError ? (
+                    <div className="market-inline-error" role="alert">
+                        <i className="bi bi-exclamation-triangle"></i>
+                        <span>{goldMarketError}</span>
+                        <button type="button" onClick={() => setGoldMarketRefresh(previous => !previous)}>Thử lại</button>
+                    </div>
+                ) : goldMarketLoading ? (
+                    <div className="market-stock-empty">Đang tải báo giá SJC thực tế từ Giavang.org...</div>
+                ) : goldQuotes.length === 0 ? (
+                    <div className="market-stock-empty">Giavang.org hiện không có báo giá vàng SJC.</div>
+                ) : (
+                    <div className="gold-market-content">
+                        <label className="form-group">
+                            <span>Loại vàng SJC có báo giá trên Giavang.org</span>
+                            <select
+                                value={selectedGold?.assetName || ''}
+                                onChange={event => setSelectedGold(goldQuotes.find(item => item.assetName === event.target.value) || null)}
+                            >
+                                {goldQuotes.map(quote => (
+                                    <option key={quote.assetName} value={quote.assetName}>{quote.assetName}</option>
+                                ))}
+                            </select>
+                        </label>
+                        {selectedGold && (
+                            <>
+                                <div className="gold-market-rates">
+                                    <div>
+                                        <span>Nhà cung cấp mua vào</span>
+                                        <strong>{formatMoney(selectedGold.buyPrice)} / chỉ</strong>
+                                        <small>Giá tham chiếu khi bạn bán</small>
+                                    </div>
+                                    <div>
+                                        <span>Nhà cung cấp bán ra</span>
+                                        <strong>{formatMoney(selectedGold.sellPrice)} / chỉ</strong>
+                                        <small>Giá áp dụng khi bạn mua</small>
+                                    </div>
+                                </div>
+                                <div className="gold-market-footer">
+                                    <span><i className="market-live-dot"></i> Giavang.org · SJC · {selectedGold.branchName}</span>
+                                    <span>Cập nhật {selectedGold.priceTime}</span>
+                                    {goldTradingAvailable && (
+                                        <button
+                                            type="button"
+                                            className="market-invest-button"
+                                            onClick={() => {
+                                                setShowForm(false);
+                                                setInitialAsset(null);
+                                                setShowGoldForm(true);
+                                            }}
+                                            disabled={allowedJars.length === 0}
+                                        >
+                                            <i className="bi bi-plus-circle"></i> Mua vàng
+                                        </button>
+                                    )}
+                                </div>
+                                {!goldTradingAvailable && (
+                                    <p className="gold-market-chart-note" role="status">
+                                        {goldTradingUnavailableMessage}
+                                    </p>
+                                )}
+                                <p className="gold-market-chart-note">
+                                    Giavang.org cung cấp báo giá SJC mới nhất; không có dữ liệu lịch sử tại nguồn này để vẽ biểu đồ.
+                                </p>
+                            </>
+                        )}
+                    </div>
+                )}
+            </section>
+
+            {showGoldForm && goldTradingAvailable && selectedGold && (
+                <GoldTradeForm
+                    quote={{ ...selectedGold, unit: 'chỉ' }}
                     allowedJars={allowedJars}
-                    onSuccess={() => { setShowForm(false); setRefresh(prev => !prev); }} 
-                    onCancel={() => setShowForm(false)} 
+                    onSuccess={() => {
+                        setShowGoldForm(false);
+                        setRefresh(previous => !previous);
+                    }}
+                    onCancel={() => setShowGoldForm(false)}
                 />
             )}
 
-            {investments.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>📭 Bạn chưa có tài sản đầu tư nào.</div>
-            ) : (
-                <div className="investment-grid">
-                    {investments.map(inv => {
-                        const profit = inv.currentValue - inv.amountInvested;
-                        const roi = inv.amountInvested > 0 ? ((profit / inv.amountInvested) * 100).toFixed(2) : 0;
-                        const isProfit = profit >= 0;
-
-                        return (
-                            <div key={inv.id} className={`investment-card ${isProfit ? 'profit' : 'loss'}`}>
-                                <div className="card-header">
-                                    <div>
-                                        <h4>{inv.assetName}</h4>
-                                        <div className="date-text">
-                                            Ngày mua: {new Date(inv.investDate).toLocaleDateString('vi-VN')}
-                                            {inv.jar?.jarName && <span className="ms-2 badge bg-light text-dark">Hũ: {inv.jar.jarName}</span>}
-                                        </div>
-                                    </div>
-                                    <span className="type-badge">{inv.assetType}</span>
-                                </div>
-
-                                <div className="card-body">
-                                    <div className="value-row"><span>Vốn đầu tư:</span><strong>{formatMoney(inv.amountInvested)}</strong></div>
-                                    <div className="value-row" style={{ marginTop: '5px' }}>
-                                        <span>Giá trị hiện tại:</span>
-                                        <strong style={{ fontSize: '18px', color: isProfit ? '#059669' : '#dc2626' }}>{formatMoney(inv.currentValue)}</strong>
-                                    </div>
-
-                                    <div className={`profit-box ${isProfit ? 'profit' : 'loss'}`}>
-                                        <span>{isProfit ? '▲ Lời' : '▼ Lỗ'} ({isProfit ? '+' : ''}{roi}%)</span>
-                                        <span>{formatMoney(Math.abs(profit))}</span>
-                                    </div>
-                                    
-                                    <button onClick={() => handleOpenSellModal(inv)} className="btn-withdraw-investment">
-                                        <i className="bi bi-cash-coin"></i> Bán & Rút Tiền Về Hũ
-                                    </button>
-                                </div>
-                            </div>
-                        );
-                    })}
-                </div>
+            {showForm && (
+                <InvestmentForm
+                    key={initialAsset?.symbol || 'manual'}
+                    initialAsset={initialAsset}
+                    allowedJars={allowedJars}
+                    onSuccess={() => {
+                        setShowForm(false);
+                        setInitialAsset(null);
+                        setRefresh(prev => !prev);
+                    }}
+                    onCancel={() => {
+                        setShowForm(false);
+                        setInitialAsset(null);
+                    }}
+                />
             )}
 
+            <div className="investment-dashboard-grid">
+                <section className="investment-panel investment-assets-panel">
+                    <div className="investment-panel-heading">
+                        <div>
+                            <h4>Tài sản của tôi</h4>
+                            <span>{investments.length} khoản đầu tư</span>
+                        </div>
+                        <i className="bi bi-three-dots"></i>
+                    </div>
+
+                    {investments.length === 0 ? (
+                        <div className="investment-empty-state">
+                            <i className="bi bi-safe2"></i>
+                            <strong>Danh mục đang trống</strong>
+                            <span>Thêm tài sản đầu tư để bắt đầu theo dõi.</span>
+                        </div>
+                    ) : (
+                        <div className="investment-assets-list">
+                            <div className="investment-assets-columns">
+                                <span>Tài sản</span>
+                                <span>Giá trị / Lãi lỗ</span>
+                            </div>
+                            {investments.map(inv => {
+                                const isPriced = inv.isMarketPriced && Number.isFinite(Number(inv.currentValue));
+                                const invested = Number(inv.amountInvested || 0);
+                                const value = isPriced ? Number(inv.currentValue) : null;
+                                const profit = isPriced ? value - invested : null;
+                                const roi = isPriced && invested > 0 ? (profit / invested * 100) : 0;
+                                const isUnpricedStock = inv.assetType === 'Cổ phiếu' && !isPriced;
+                                const isUnpricedGold = inv.assetType === 'Vàng' && !isPriced;
+                                const displayName = inv.marketName || inv.assetName;
+
+                                return (
+                                    <div className="investment-asset-row" key={inv.id}>
+                                        <div className="investment-asset-identity">
+                                            <div className="asset-avatar">{(inv.marketSymbol || displayName || '?').slice(0, 1)}</div>
+                                            <div className="investment-asset-name">
+                                                <strong title={displayName}>{displayName}</strong>
+                                                <span>{inv.isClosed ? 'Đã bán hết' : `${inv.marketSymbol || inv.assetType || 'Tài sản'}${inv.unit ? ` · ${inv.unit}` : ''}`}</span>
+                                                <small>Vốn {formatMoney(invested)}</small>
+                                                {isPriced && !inv.isClosed && (
+                                                    inv.unit ? (
+                                                        <small>
+                                                            SL {new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 6 }).format(inv.marketQuantity || 0)} {inv.unit}
+                                                            {' · Giá vốn '}{formatMoney(inv.marketPurchasePrice)}
+                                                            {' → Giá hiện tại '}{formatMoney(inv.marketPrice)}
+                                                        </small>
+                                                    ) : (
+                                                        <small>
+                                                            SL ~{new Intl.NumberFormat('vi-VN', { maximumFractionDigits: 4 }).format(inv.marketQuantity || 0)}
+                                                            {' · Mua '}{formatMoney(inv.marketPurchasePrice)}
+                                                            {' → Hiện tại '}{formatMoney(inv.marketPrice)}
+                                                        </small>
+                                                    )
+                                                )}
+                                                {inv.unit && inv.marketPriceTime && !inv.isClosed && (
+                                                    <small>Cập nhật giá {inv.marketPriceTime}</small>
+                                                )}
+                                                {Number(inv.realizedProfitLoss || 0) !== 0 && (
+                                                    <small className={inv.realizedProfitLoss >= 0 ? 'text-profit' : 'text-loss'}>
+                                                        Lãi/lỗ đã thực hiện {inv.realizedProfitLoss >= 0 ? '+' : '-'}{formatMoney(Math.abs(inv.realizedProfitLoss))}
+                                                    </small>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="investment-asset-performance">
+                                            <strong>{isPriced ? formatMoney(value) : 'Chưa có giá'}</strong>
+                                            {isPriced ? (
+                                                <span className={profit >= 0 ? 'text-profit' : 'text-loss'}>
+                                                    {profit >= 0 ? '+' : '-'}{formatMoney(Math.abs(profit))} ({roi >= 0 ? '+' : ''}{roi.toFixed(2)}%)
+                                                </span>
+                                            ) : (
+                                                <span className="text-unpriced" title={inv.marketDataError}>
+                                                    {inv.marketDataError || 'Chưa có dữ liệu giá'}
+                                                </span>
+                                            )}
+                                            {inv.assetType !== 'Vàng' || goldTradingAvailable ? (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleOpenSellModal(inv)}
+                                                    disabled={isUnpricedStock || isUnpricedGold || inv.isClosed}
+                                                    className="asset-sell-button"
+                                                    title={isUnpricedStock
+                                                        ? 'Không thể bán cổ phiếu khi chưa có giá thị trường.'
+                                                        : isUnpricedGold ? 'Không thể bán vàng khi Giavang.org chưa có báo giá SJC.' : 'Bán và rút tiền'}
+                                                >
+                                                    <i className="bi bi-box-arrow-up-right"></i>
+                                                </button>
+                                            ) : null}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </section>
+
+                <section className="investment-panel investment-history-panel">
+                    <div className="investment-panel-heading">
+                        <div>
+                            <h4>Giá trị danh mục</h4>
+                            <span>Lịch sử Yahoo Finance; Giavang.org cung cấp báo giá SJC hiện tại</span>
+                        </div>
+                        <div className="chart-range-tabs" role="group" aria-label="Khoảng thời gian biểu đồ">
+                            {RANGE_OPTIONS.map(option => (
+                                <button
+                                    key={option.value}
+                                    type="button"
+                                    onClick={() => setChartRange(option.value)}
+                                    className={chartRange === option.value ? 'active' : ''}
+                                >
+                                    {option.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    {visiblePortfolioHistory.length > 1 ? (
+                        <div className="investment-chart-area">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={visiblePortfolioHistory} margin={{ top: 12, right: 10, left: 4, bottom: 0 }}>
+                                    <defs>
+                                        <linearGradient id="portfolioValueFill" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stopColor="#4f7df3" stopOpacity={0.24} />
+                                            <stop offset="95%" stopColor="#4f7df3" stopOpacity={0.01} />
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid vertical={false} stroke="#edf1f7" strokeDasharray="3 4" />
+                                    <XAxis dataKey="label" axisLine={false} tickLine={false} minTickGap={28} tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                                    <YAxis
+                                        axisLine={false}
+                                        tickLine={false}
+                                        width={70}
+                                        tick={{ fill: '#94a3b8', fontSize: 11 }}
+                                        tickFormatter={value => `${new Intl.NumberFormat('vi-VN', { notation: 'compact', maximumFractionDigits: 1 }).format(value)}đ`}
+                                    />
+                                    <Tooltip
+                                        labelFormatter={(_, payload) => payload?.[0]?.payload?.date
+                                            ? new Date(`${payload[0].payload.date}T00:00:00`).toLocaleDateString('vi-VN')
+                                            : ''}
+                                        formatter={value => [formatMoney(value), 'Giá trị danh mục']}
+                                        contentStyle={{ border: '1px solid #e8edf5', borderRadius: 10, boxShadow: '0 8px 24px rgba(25, 45, 80, .12)' }}
+                                    />
+                                    <Area type="monotone" dataKey="value" stroke="#4f7df3" strokeWidth={2.5} fill="url(#portfolioValueFill)" activeDot={{ r: 5, strokeWidth: 0 }} />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </div>
+                    ) : (
+                        <div className="investment-chart-empty">
+                            <i className="bi bi-graph-up"></i>
+                            <span>Chưa đủ dữ liệu giá lịch sử để vẽ biểu đồ.</span>
+                        </div>
+                    )}
+                    <div className="chart-footnote">
+                        <span><i className="market-live-dot"></i> Yahoo Finance (cổ phiếu) · Giavang.org/SJC không có lịch sử</span>
+                        <span>{pricedInvestments.length} tài sản có giá hiện tại</span>
+                    </div>
+                </section>
+
+                <section className="investment-panel investment-composition-panel">
+                    <div className="investment-panel-heading">
+                        <div>
+                            <h4>Cơ cấu tài sản</h4>
+                            <span>Phân bổ theo giá trị thị trường</span>
+                        </div>
+                        <div className="composition-mode-tabs" role="group" aria-label="Cách phân nhóm cơ cấu tài sản">
+                            <button type="button" onClick={() => setCompositionMode('type')} className={compositionMode === 'type' ? 'active' : ''}>Theo loại</button>
+                            <button type="button" onClick={() => setCompositionMode('asset')} className={compositionMode === 'asset' ? 'active' : ''}>Theo tài sản</button>
+                        </div>
+                    </div>
+                    {composition.length > 0 ? (
+                        <div className="investment-composition-content">
+                            <div className="investment-donut">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie data={composition} dataKey="value" nameKey="name" innerRadius="69%" outerRadius="91%" paddingAngle={3} stroke="none">
+                                            {composition.map((item, index) => (
+                                                <Cell key={item.name} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip formatter={value => [formatMoney(value), 'Giá trị']} />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                                <div className="investment-donut-center">
+                                    <span>Tổng giá trị</span>
+                                    <strong>{formatMoney(compositionTotal)}</strong>
+                                </div>
+                            </div>
+                            <div className="investment-composition-legend">
+                                {composition.map((item, index) => (
+                                    <div className="composition-legend-item" key={item.name}>
+                                        <span className="composition-color" style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}></span>
+                                        <span className="composition-name" title={item.name}>{item.name}</span>
+                                        <strong>{compositionTotal > 0 ? (item.value / compositionTotal * 100).toFixed(1) : '0.0'}%</strong>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="investment-chart-empty">
+                            <i className="bi bi-pie-chart"></i>
+                            <span>Chưa có tài sản nào được định giá để hiển thị cơ cấu.</span>
+                        </div>
+                    )}
+                </section>
+            </div>
+
             {/* Modal Xác Nhận Rút Tiền */}
-            {sellTarget && (
+            {sellTarget && (sellTarget.assetType !== 'Vàng' || goldTradingAvailable) && (
                 <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1050 }}>
                     <div className="modal-dialog modal-dialog-centered">
                         <div className="modal-content border-0 shadow-lg">
@@ -153,9 +933,36 @@ const InvestmentList = () => {
                             <div className="modal-body p-4">
                                 <div className="text-center" style={{ fontSize: '40px', marginBottom: '10px' }}>🏦</div>
                                 <p className="text-center" style={{ fontSize: '16px' }}>
-                                    Bạn đang chốt bán tài sản <b>{sellTarget.assetName}</b> với giá trị 
-                                    <b style={{ color: '#059669', fontSize: '18px' }}> {formatMoney(sellTarget.currentValue)}</b>.
+                                    {sellTarget.assetType === 'Vàng' ? (
+                                        <>Giavang.org báo SJC mua vào <b>{sellTarget.marketName || sellTarget.assetName}</b> với giá
+                                            <b style={{ color: '#059669', fontSize: '18px' }}> {formatMoney(sellTarget.marketPrice)}/{sellTarget.unit}</b>.
+                                            {' '}Đang nắm giữ {sellTarget.marketQuantity} {sellTarget.unit}.</>
+                                    ) : sellTarget.isMarketPriced ? (
+                                        <>Bạn đang chốt bán tài sản <b>{sellTarget.marketName || sellTarget.assetName}</b> với giá trị
+                                            <b style={{ color: '#059669', fontSize: '18px' }}> {formatMoney(sellTarget.currentValue)}</b>.</>
+                                    ) : (
+                                        <>Tài sản <b>{sellTarget.assetName}</b> chưa có API giá thị trường. Số tiền nhận về sẽ bằng vốn đầu tư:
+                                            <b style={{ color: '#059669', fontSize: '18px' }}> {formatMoney(sellTarget.amountInvested)}</b>.</>
+                                    )}
                                 </p>
+
+                                {sellTarget.assetType === 'Vàng' && goldTradingAvailable && (
+                                    <div className="mb-3 text-start">
+                                        <label className="form-label fw-bold small" htmlFor="gold-sell-quantity">
+                                            Số lượng bán ({sellTarget.unit})
+                                        </label>
+                                        <input
+                                            id="gold-sell-quantity"
+                                            className="form-control"
+                                            type="number"
+                                            min="0.000001"
+                                            max={sellTarget.marketQuantity}
+                                            step="0.000001"
+                                            value={sellQuantity}
+                                            onChange={event => setSellQuantity(event.target.value)}
+                                        />
+                                    </div>
+                                )}
 
                                 {/* Dropdown chọn hũ nhận tiền */}
                                 <div className="mb-3 text-start">
@@ -174,8 +981,13 @@ const InvestmentList = () => {
                                 </div>
 
                                 <div className="d-flex gap-2 mt-4">
-                                    <button className="btn btn-primary w-100 fw-bold py-2" onClick={handleSell}>
-                                        Xác Nhận Rút Tiền
+                                    <button
+                                        className="btn btn-primary w-100 fw-bold py-2"
+                                        onClick={handleSell}
+                                        disabled={sellTarget.assetType === 'Vàng'
+                                            && (!goldTradingAvailable || !sellQuantity || Number(sellQuantity) <= 0 || Number(sellQuantity) > Number(sellTarget.marketQuantity))}
+                                    >
+                                        {sellTarget.assetType === 'Vàng' ? 'Xác nhận bán vàng' : 'Xác Nhận Rút Tiền'}
                                     </button>
                                     <button className="btn btn-secondary w-100 py-2" onClick={() => setSellTarget(null)}>
                                         Hủy

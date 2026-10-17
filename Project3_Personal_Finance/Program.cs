@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.IdentityModel.Tokens;
 using Project3_Personal_Finance.Models;
 using System.Text;
@@ -8,7 +9,14 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<PersonalFinanceDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection") ??
     "Server=localhost;Database=PersonalFinanceDB;Trusted_Connection=True;TrustServerCertificate=True"
     //"Server=localhost\\SQLEXPRESS;Database=PersonalFinanceDB;Trusted_Connection=True;TrustServerCertificate=True;"
-    ));
+    ).ReplaceService<IModelCustomizer, LegacyDatabaseModelCustomizer>());
+builder.Services.AddHttpClient("YahooFinance", client =>
+{
+    client.BaseAddress = new Uri("https://query1.finance.yahoo.com/");
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (compatible; PersonalFinanceApp/1.0)");
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+builder.Services.AddMemoryCache();
 // Add services to the container.
 
 builder.Services.AddControllers()
@@ -92,3 +100,34 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+internal sealed class LegacyDatabaseModelCustomizer : ModelCustomizer
+{
+    public LegacyDatabaseModelCustomizer(ModelCustomizerDependencies dependencies)
+        : base(dependencies)
+    {
+    }
+
+    public override void Customize(ModelBuilder modelBuilder, DbContext context)
+    {
+        base.Customize(modelBuilder, context);
+
+        modelBuilder.Entity<Investment>().Ignore(investment => investment.Quantity);
+
+        var transaction = modelBuilder.Entity<Transaction>();
+        var idempotencyKey = transaction.Metadata.FindProperty(nameof(Transaction.IdempotencyKey));
+        if (idempotencyKey != null)
+        {
+            var idempotencyIndex = transaction.Metadata.FindIndex([idempotencyKey]);
+            if (idempotencyIndex != null)
+            {
+                transaction.Metadata.RemoveIndex(idempotencyIndex);
+            }
+        }
+
+        transaction.Ignore(item => item.IdempotencyKey);
+        transaction.Ignore(item => item.Quantity);
+        transaction.Ignore(item => item.UnitPrice);
+        transaction.Ignore(item => item.RealizedProfitLoss);
+    }
+}
