@@ -5,6 +5,9 @@ namespace Project3_Personal_Finance.DTOs;
 
 public sealed class GoalPaymentSchedule
 {
+    public const string NotificationType = "GOAL_SCHEDULE";
+    private const string NotificationTitlePrefix = "GoalSchedule:";
+
     public int JarId { get; set; }
     public decimal Amount { get; set; }
     public DateOnly StartDate { get; set; }
@@ -34,8 +37,8 @@ public sealed class GoalPaymentSchedule
         new()
         {
             UserId = userId,
-            Type = "GOAL_SCHEDULE",
-            Title = $"GoalSchedule:{goalId}",
+            Type = NotificationType,
+            Title = GetTitle(goalId),
             Message = schedule.Serialize(),
             IsRead = true,
             CreatedAt = DateTime.Now
@@ -56,6 +59,26 @@ public sealed class GoalPaymentSchedule
             DateTime.DaysInMonth(nextMonth.Year, nextMonth.Month));
         return nextMonth.AddDays(day - 1);
     }
+
+    public static DateOnly? GetNextPaymentDate(
+        GoalPaymentSchedule schedule,
+        DateOnly paymentDate,
+        DateOnly today)
+    {
+        var next = GetNextDate(schedule, paymentDate);
+        while (next != null && next <= today)
+            next = GetNextDate(schedule, next.Value);
+        return next;
+    }
+
+    public static string GetTitle(int goalId) => $"{NotificationTitlePrefix}{goalId}";
+
+    public static int? ParseGoalId(string? title) =>
+        title != null
+        && title.StartsWith(NotificationTitlePrefix, StringComparison.Ordinal)
+        && int.TryParse(title[NotificationTitlePrefix.Length..], out var id)
+            ? id
+            : null;
 }
 
 public sealed class GoalUpsertRequest

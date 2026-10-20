@@ -4,3 +4,25 @@ GET {{Project3_Personal_Finance_HostAddress}}/weatherforecast/
 Accept: application/json
 
 ###
+
+@token = replace-with-a-valid-jwt
+
+### Popular Vietnam stock quotes
+GET {{Project3_Personal_Finance_HostAddress}}/api/Investments/market/popular
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Search Vietnam stocks by ticker or company name
+GET {{Project3_Personal_Finance_HostAddress}}/api/Investments/market/search?q=FPT
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Get current quote and one-year price history
+GET {{Project3_Personal_Finance_HostAddress}}/api/Investments/market/FPT
+Authorization: Bearer {{token}}
+Accept: application/json
+
+### Reject an unknown market symbol
+GET {{Project3_Personal_Finance_HostAddress}}/api/Investments/market/NOTAREALSTOCK
+Authorization: Bearer {{token}}
+Accept: application/json

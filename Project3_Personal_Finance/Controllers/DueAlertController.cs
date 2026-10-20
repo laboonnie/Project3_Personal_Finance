@@ -68,6 +68,34 @@ namespace Project3_Personal_Finance.Controllers
             return idx >= 0 ? message[(idx + separator.Length)..] : message;
         }
 
+        private static Candidate? CreateCandidate(
+            string type,
+            string kind,
+            string? name,
+            DueInfo due,
+            decimal amount,
+            DateOnly? dueDate,
+            int? jarId,
+            int entityId)
+        {
+            if (due.Status is not (DueDateHelper.DueSoon or DueDateHelper.Overdue))
+                return null;
+
+            var displayName = name ?? kind;
+            return new Candidate(
+                type,
+                kind,
+                displayName,
+                $"{kind}: {displayName}",
+                due.Warning ?? "",
+                due.Status == DueDateHelper.Overdue,
+                due.DaysUntilDue ?? 0,
+                amount,
+                dueDate,
+                jarId,
+                entityId);
+        }
+
         // Runs automatic payments and returns all current goal and debt due alerts.
         [HttpGet]
         public async Task<IActionResult> GetAlerts()
@@ -130,28 +158,23 @@ namespace Project3_Personal_Finance.Controllers
                 foreach (var d in debts)
                 {
                     var due = DueDateHelper.Evaluate(d.DueDate, (d.RemainingAmount ?? 0) <= 0);
-                    if (due.Status is DueDateHelper.DueSoon or DueDateHelper.Overdue)
-                    {
-                        var name = d.DebtName ?? "Debt";
-                        candidates.Add(new Candidate(
-                            DebtType, "Debt", name, $"Debt: {name}", due.Warning ?? "",
-                            due.Status == DueDateHelper.Overdue, due.DaysUntilDue ?? 0,
-                            d.RemainingAmount ?? 0, d.DueDate, d.JarId, d.Id));
-                    }
+                    var candidate = CreateCandidate(
+                        DebtType, "Debt", d.DebtName, due,
+                        d.RemainingAmount ?? 0, d.DueDate, d.JarId, d.Id);
+                    if (candidate != null)
+                        candidates.Add(candidate);
                 }
 
                 foreach (var g in goals)
                 {
                     var completed = string.Equals(g.Status, "completed", StringComparison.OrdinalIgnoreCase);
                     var due = DueDateHelper.Evaluate(g.Deadline, completed, lockWhenOverdue: false);
-                    if (due.Status is DueDateHelper.DueSoon or DueDateHelper.Overdue)
-                    {
-                        var name = g.GoalName ?? "Goal";
-                        candidates.Add(new Candidate(
-                            GoalType, "Goal", name, $"Goal: {name}", due.Warning ?? "",
-                            due.Status == DueDateHelper.Overdue, due.DaysUntilDue ?? 0,
-                            (g.TargetAmount ?? 0) - (g.CurrentAmount ?? 0), g.Deadline, g.JarId, g.Id));
-                    }
+                    var candidate = CreateCandidate(
+                        GoalType, "Goal", g.GoalName, due,
+                        (g.TargetAmount ?? 0) - (g.CurrentAmount ?? 0),
+                        g.Deadline, g.JarId, g.Id);
+                    if (candidate != null)
+                        candidates.Add(candidate);
                 }
 
                 candidates = candidates
@@ -255,8 +278,8 @@ namespace Project3_Personal_Finance.Controllers
                                 var scheduleRecord = await _context.Notifications.AsNoTracking()
                                     .FirstOrDefaultAsync(item =>
                                         item.UserId == userId
-                                        && item.Type == "GOAL_SCHEDULE"
-                                        && item.Title == $"GoalSchedule:{g.Id}");
+                                        && item.Type == GoalPaymentSchedule.NotificationType
+                                        && item.Title == GoalPaymentSchedule.GetTitle(g.Id));
                                 var schedule = scheduleRecord == null
                                     ? null
                                     : GoalPaymentSchedule.Parse(scheduleRecord.Message);
@@ -408,8 +431,8 @@ namespace Project3_Personal_Finance.Controllers
 
                     scheduleRecord = await _context.Notifications.FirstOrDefaultAsync(item =>
                         item.UserId == userId
-                        && item.Type == "GOAL_SCHEDULE"
-                        && item.Title == $"GoalSchedule:{goal.Id}");
+                        && item.Type == GoalPaymentSchedule.NotificationType
+                        && item.Title == GoalPaymentSchedule.GetTitle(goal.Id));
                     schedule = scheduleRecord == null
                         ? null
                         : GoalPaymentSchedule.Parse(scheduleRecord.Message);
@@ -468,10 +491,10 @@ namespace Project3_Personal_Finance.Controllers
                         }
                         else
                         {
-                            var next = GoalPaymentSchedule.GetNextDate(schedule, paymentDate);
-                            var today = DateOnly.FromDateTime(DateTime.Today);
-                            while (next != null && next <= today)
-                                next = GoalPaymentSchedule.GetNextDate(schedule, next.Value);
+                            var next = GoalPaymentSchedule.GetNextPaymentDate(
+                                schedule,
+                                paymentDate,
+                                DateOnly.FromDateTime(DateTime.Today));
                             schedule.NextPaymentDate = next;
                             schedule.Enabled = next != null;
                         }

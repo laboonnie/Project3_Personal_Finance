@@ -3,21 +3,36 @@ import api from '../../api/api';
 import { toast } from 'react-toastify';
 import './Investments.css';
 
-const InvestmentForm = ({ onSuccess, onCancel }) => {
+const InvestmentForm = ({ onSuccess, onCancel, initialAsset = null, allowedJars: suppliedJars }) => {
     const [formData, setFormData] = useState({
-        assetName: '', 
-        assetType: 'Cổ phiếu', 
+        assetName: initialAsset?.symbol || '',
+        assetType: 'Cổ phiếu',
         amountInvested: '', 
+        quantity: '',
         jarId: '', 
         investDate: new Date().toISOString().split('T')[0]
     });
+    const [investmentMode, setInvestmentMode] = useState('amount');
     
     const [loading, setLoading] = useState(false);
-    const [allowedJars, setAllowedJars] = useState([]); 
+    const [allowedJars, setAllowedJars] = useState(suppliedJars || []);
     const [selectedJarBalance, setSelectedJarBalance] = useState(null);
 
     // Lấy danh sách 2 Hũ cho phép (FFA & LTS) từ Backend
     useEffect(() => {
+        if (suppliedJars) {
+            setAllowedJars(suppliedJars);
+            if (suppliedJars.length > 0) {
+                setFormData(prev => ({
+                    ...prev,
+                    jarId: suppliedJars.some(jar => jar.jarId === Number(prev.jarId))
+                        ? prev.jarId
+                        : suppliedJars[0].jarId
+                }));
+            }
+            return;
+        }
+
         const fetchAllowedJars = async () => {
             try {
                 const res = await api.get('/Investments/allowed-jars');
@@ -33,7 +48,12 @@ const InvestmentForm = ({ onSuccess, onCancel }) => {
             }
         };
         fetchAllowedJars();
-    }, []);
+    }, [suppliedJars]);
+
+    useEffect(() => {
+        const selectedJar = allowedJars.find(jar => jar.jarId === Number(formData.jarId));
+        setSelectedJarBalance(selectedJar?.balance ?? (allowedJars.length === 0 ? null : 0));
+    }, [allowedJars, formData.jarId]);
 
     // Xử lý khi thay đổi Hũ đầu tư
     const handleJarChange = (e) => {
@@ -56,7 +76,10 @@ const InvestmentForm = ({ onSuccess, onCancel }) => {
             return;
         }
 
-        if (Number(formData.amountInvested) > selectedJarBalance) {
+        const estimatedAmount = investmentMode === 'quantity'
+            ? Number(formData.quantity) * Number(initialAsset?.currentPrice || 0)
+            : Number(formData.amountInvested);
+        if (estimatedAmount > selectedJarBalance) {
             toast.error('Số tiền đầu tư vượt quá số dư khả dụng của Hũ đã chọn!');
             return;
         }
@@ -65,7 +88,8 @@ const InvestmentForm = ({ onSuccess, onCancel }) => {
         const payload = { 
             assetName: formData.assetName,
             assetType: formData.assetType,
-            amountInvested: Number(formData.amountInvested), 
+            amountInvested: investmentMode === 'amount' ? Number(formData.amountInvested) : 0,
+            quantity: investmentMode === 'quantity' ? Number(formData.quantity) : null,
             jarId: Number(formData.jarId),
             investDate: formData.investDate
         };
@@ -95,7 +119,7 @@ const InvestmentForm = ({ onSuccess, onCancel }) => {
 
     return (
         <div className="investment-form-container">
-            <h3>Mua / Nạp Tài Sản Đầu Tư Mới ➕</h3>
+            <h3>{initialAsset ? `Đầu tư ${initialAsset.symbol}` : 'Mua / Nạp Tài Sản Đầu Tư Mới ➕'}</h3>
             <p className="text-muted" style={{ fontSize: '13px', marginBottom: '20px' }}>
                 Nguồn vốn đầu tư chỉ được phép trích từ 2 hũ: <b>Tự do tài chính</b> hoặc <b>Tiết kiệm dài hạn</b>.
             </p>
@@ -135,20 +159,24 @@ const InvestmentForm = ({ onSuccess, onCancel }) => {
                     </div>
 
                     <div className="form-group">
-                        <label>Tên Tài Sản (Tên Cổ phiếu, Vàng, Dự án...)</label>
+                        <label>{formData.assetType === 'Cổ phiếu' ? 'Mã cổ phiếu Việt Nam' : 'Tên Tài Sản'}</label>
                         <input 
                             type="text" 
                             name="assetName" 
                             value={formData.assetName} 
                             onChange={handleChange} 
-                            placeholder="VD: Vinamilk (VNM), Vàng SJC..."
+                            placeholder={formData.assetType === 'Cổ phiếu' ? 'VD: FPT, VNM, HPG' : 'VD: Vàng SJC, Dự án...'}
+                            readOnly={Boolean(initialAsset)}
                             required 
                         />
+                        {formData.assetType === 'Cổ phiếu' && (
+                            <small className="text-muted">Giá mua tham chiếu lấy theo giá đóng cửa Yahoo Finance của ngày đầu tư hoặc phiên gần nhất trước đó.</small>
+                        )}
                     </div>
 
                     <div className="form-group">
                         <label>Loại Tài Sản</label>
-                        <select name="assetType" value={formData.assetType} onChange={handleChange} required>
+                        <select name="assetType" value={formData.assetType} onChange={handleChange} required disabled={Boolean(initialAsset)}>
                             <option value="Cổ phiếu">Cổ phiếu</option>
                             <option value="Trái phiếu">Trái phiếu</option>
                             <option value="Vàng">Vàng</option>
@@ -157,18 +185,48 @@ const InvestmentForm = ({ onSuccess, onCancel }) => {
                         </select>
                     </div>
 
-                    <div className="form-group">
-                        <label>Số Tiền Mua (VNĐ)</label>
-                        <input 
-                            type="number" 
-                            name="amountInvested" 
-                            value={formData.amountInvested} 
-                            onChange={handleChange} 
-                            placeholder="VD: 5000000"
-                            required 
-                            min="1000" 
-                        />
-                    </div>
+                    {initialAsset && (
+                        <div className="form-group investment-input-mode">
+                            <label>Nhập theo</label>
+                            <div className="investment-input-mode-tabs">
+                                <button type="button" className={investmentMode === 'amount' ? 'active' : ''} onClick={() => setInvestmentMode('amount')}>Số tiền</button>
+                                <button type="button" className={investmentMode === 'quantity' ? 'active' : ''} onClick={() => setInvestmentMode('quantity')}>Số lượng</button>
+                            </div>
+                        </div>
+                    )}
+
+                    {investmentMode === 'quantity' && initialAsset ? (
+                        <div className="form-group">
+                            <label>Số lượng cổ phiếu</label>
+                            <input
+                                type="number"
+                                name="quantity"
+                                value={formData.quantity}
+                                onChange={handleChange}
+                                placeholder="VD: 100"
+                                required
+                                min="1"
+                                step="1"
+                            />
+                            <small className="text-muted">
+                                Tạm tính {formatMoney(Number(formData.quantity || 0) * Number(initialAsset.currentPrice || 0))} theo giá API hiện tại.
+                                {' '}Máy chủ sẽ tính lại theo báo giá tại thời điểm xác nhận.
+                            </small>
+                        </div>
+                    ) : (
+                        <div className="form-group">
+                            <label>Số Tiền Mua (VNĐ)</label>
+                            <input
+                                type="number"
+                                name="amountInvested"
+                                value={formData.amountInvested}
+                                onChange={handleChange}
+                                placeholder="VD: 5000000"
+                                required
+                                min="1000"
+                            />
+                        </div>
+                    )}
 
                     <div className="form-group">
                         <label>Ngày Đầu Tư</label>
@@ -178,6 +236,7 @@ const InvestmentForm = ({ onSuccess, onCancel }) => {
                             value={formData.investDate} 
                             onChange={handleChange} 
                             required 
+                            readOnly={Boolean(initialAsset)}
                         />
                     </div>
                 </div>

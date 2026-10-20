@@ -1,25 +1,23 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import api from '../../api/api'; 
 import { toast } from 'react-toastify';
 import './login.css';
-import 'bootstrap/dist/css/bootstrap.min.css';
 
 const Register = () => {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
-    const [action,setAction]= useState("Sign Up")
+    const [isLoading, setIsLoading] = useState(false);
 
-    const [error, setError] = useState('');
-    const [successMsg, setSuccessMsg] = useState('');
     const navigate = useNavigate();
+
     const handleRegister = async (e) => {
         e.preventDefault();
 
         if (!email.includes('@')) {
-            toast.warning('Email is not valid!');
+            toast.warning('Please enter a valid email address!');
             return;
         }
 
@@ -29,128 +27,118 @@ const Register = () => {
         }
 
         if (password !== confirmPassword) {
-            toast.warning('Confirm password incorrect!');
+            toast.warning('Password confirmation does not match!');
             return;
         }
 
+        setIsLoading(true);
+
         try {
             await api.post('/Users/register', { name, email, password });
-
-            toast.success('Registration successful!');
+            toast.success('Registration successful! Redirecting to login...');
             navigate('/login');
-
         } catch (error) {
-            toast.error(error.response?.data || 'Register failed!');
+            const errorMsg = typeof error.response?.data === 'string' 
+                ? error.response.data 
+                : error.response?.data?.message || 'Registration failed!';
+            toast.error(errorMsg);
+        } finally {
+            setIsLoading(false);
         }
     };
 
-    // const handleRegister = async (e) => {
-    //     e.preventDefault();
-    //     if (!email.includes('@')) {
-    //         toast.warning('Email is not valid!');
-    //         return;
-    //     }
-    //     if (password.length < 6) {
-    //         toast.warning('Password must be at least 6 characters long!');
-    //         return;
-    //     }
-
-    //     try {
-    //         await api.post('/Users/register', { name, email, password });
-    //         toast.success('Registration successful! Please login.');
-    //         navigate('/login');
-    //     } catch (error) {
-    //         toast.error(error.response?.data || 'An error occurred while registering!');
-    //     }
-    //     setError('');
-    //     setSuccessMsg('');
-
-    //     if (password !== confirmPassword) {
-    //         setError('Confirm password incorrect');
-    //         return;
-    //     }
-    //     try {
-    //         const response = await api.post('/Users/register', {
-    //             name: name,
-    //             email: email,
-    //             password: password
-    //         });
-
-    //         setSuccessMsg('Registration successful! Redirecting to login page...');
-    //         setName(''); setEmail(''); setPassword(''); setConfirmPassword('');
-    //         setTimeout(() => {
-    //             navigate('/login');
-    //         }, 2000);
-
-    //     } catch (err) {
-    //         if (err.response && err.response.data) {
-    //             setError(typeof err.response.data === 'string' ? err.response.data : 'Error connecting to server. Please check the backend.');
-    //         } else {
-    //             setError('Error connecting to server. Please check the backend.');
-    //         }
-    //     }
-    // };
-
     return (
-        <div >
-            {error && <div style={{ color: 'red', marginBottom: '15px' }}>{error}</div>}
-            {successMsg && <div style={{ color: 'green', marginBottom: '15px' }}>{successMsg}</div>}
-            <div className='containerLogin'>
-                <div className='headerLogin'>
+        <div className="fin-login-page">
+            <div className="fin-login-card">
+                
+                {/* --- LEFT BRAND BANNER --- */}
+                <div className="fin-login-banner">
+                    <div className="brand-logo">
+                        <i className="bi bi-wallet2"></i> FINWEB
+                    </div>
+                    <div className="banner-content">
+                        <h2>Start Your Financial Journey</h2>
+                        <p>Create an account to manage your 6 Financial Jars, set savings goals, and track your investments effortlessly.</p>
+                    </div>
+                    <div className="banner-footer">
+                        © 2026 Personal Finance Manager
+                    </div>
+                </div>
+
+                {/* --- RIGHT REGISTER FORM --- */}
+                <div className="fin-login-form-wrapper">
                     <form onSubmit={handleRegister}>
-                        <div className='text'>Sign Up</div>
-                        <div className='underline'></div>
-                        <div className='inputs'>
-                            <div className='input'>
+                        <h3 className="form-header-title">Create Account ✨</h3>
+                        <p className="form-header-subtitle">Sign up for free and take control of your money.</p>
+
+                        <div className="fin-input-group">
+                            <label>Full Name</label>
+                            <div className="fin-input-box">
                                 <i className="bi bi-person-fill"></i>
-                                <input
-                                    type="text" placeholder='Name'
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                    required
-                                    style={{ width: '100%', padding: '8px', marginTop: '5px' }}
-                                />
-                            </div>
-                            <div className='input'>
-                                <i className="bi bi-envelope-at-fill"></i>
-                                <input
-                                    type="email" placeholder='Email'
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    required
-                                />
-                            </div>
-                            <div className='input'>
-                                <i className="bi bi-lock-fill"></i>
-                                <input
-                                    type="password" placeholder='Password'
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    required
-                                />
-                            </div>
-                            <div  className='input'>
-                                <i className="bi bi-lock-fill"></i>
-                                <input
-                                    type="password" placeholder='Confirm Password'
-                                    value={confirmPassword}
-                                    onChange={(e) => setConfirmPassword(e.target.value)}
-                                    required
+                                <input 
+                                    type="text" 
+                                    placeholder="John Doe" 
+                                    value={name} 
+                                    onChange={(e) => setName(e.target.value)} 
+                                    required 
                                 />
                             </div>
                         </div>
-                        <div className='submit-container'>
-                           <div className="submit gray" onClick={() => navigate('/login')}>Login</div>
-                            <div className="submit">
-                                <button type="submit">Sign Up</button>
+
+                        <div className="fin-input-group">
+                            <label>Email Address</label>
+                            <div className="fin-input-box">
+                                <i className="bi bi-envelope-at-fill"></i>
+                                <input 
+                                    type="email" 
+                                    placeholder="your.email@example.com" 
+                                    value={email} 
+                                    onChange={(e) => setEmail(e.target.value)} 
+                                    required 
+                                />
                             </div>
-                        </div> 
+                        </div>
+
+                        <div className="fin-input-group">
+                            <label>Password</label>
+                            <div className="fin-input-box">
+                                <i className="bi bi-lock-fill"></i>
+                                <input 
+                                    type="password" 
+                                    placeholder="At least 6 characters" 
+                                    value={password} 
+                                    onChange={(e) => setPassword(e.target.value)} 
+                                    required 
+                                />
+                            </div>
+                        </div>
+
+                        <div className="fin-input-group">
+                            <label>Confirm Password</label>
+                            <div className="fin-input-box">
+                                <i className="bi bi-shield-lock-fill"></i>
+                                <input 
+                                    type="password" 
+                                    placeholder="Re-enter your password" 
+                                    value={confirmPassword} 
+                                    onChange={(e) => setConfirmPassword(e.target.value)} 
+                                    required 
+                                />
+                            </div>
+                        </div>
+
+                        <div className="d-flex flex-column gap-3 mt-4">
+                            <button type="submit" className="btn-fin-primary" disabled={isLoading}>
+                                {isLoading ? 'Creating Account...' : 'Sign Up'}
+                            </button>
+                            <button type="button" className="btn-fin-secondary" onClick={() => navigate('/login')}>
+                                Already have an account? Log In
+                            </button>
+                        </div>
                     </form>
                 </div>
+
             </div>
-            {/* <p style={{ textAlign: 'center', marginTop: '15px' }}>
-                Already have an account? <Link to="/login">Login</Link>
-            </p> */}
         </div>
     );
 };

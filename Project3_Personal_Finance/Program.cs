@@ -1,87 +1,139 @@
-﻿using Microsoft.AspNetCore.Authentication.JwtBearer;
+﻿
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.IdentityModel.Tokens;
 using Project3_Personal_Finance.Models;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddDbContext<PersonalFinanceDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection") ??
-    "Server=localhost;Database=PersonalFinanceDB;Trusted_Connection=True;TrustServerCertificate=True"
-    //"Server=localhost\\SQLEXPRESS;Database=PersonalFinanceDB;Trusted_Connection=True;TrustServerCertificate=True;"
-    ));
-// Add services to the container.
 
+// WebApplication.CreateBuilder(args) tự động nạp User Secrets
+// khi môi trường là Development và project có UserSecretsId.
+
+// Cấu hình Database
+builder.Services.AddDbContext<PersonalFinanceDbContext>(options =>
+    options.UseSqlServer(
+        builder.Configuration.GetConnectionString("DefaultConnection")
+        ?? "Server=localhost;Database=PersonalFinanceDB;Trusted_Connection=True;TrustServerCertificate=True"
+    ).ReplaceService<IModelCustomizer, LegacyDatabaseModelCustomizer>()
+);
+
+// Kiểm tra API Key Groq đã được nạp hay chưa.
+// Không in giá trị API Key ra console.
+var groqApiKey = builder.Configuration["GroqSettings:ApiKey"];
+
+Console.WriteLine(
+    $"Groq API Key loaded: {!string.IsNullOrWhiteSpace(groqApiKey)}"
+);
+
+// Đăng ký HttpClient cho Yahoo Finance
+builder.Services.AddHttpClient("YahooFinance", client =>
+{
+    client.BaseAddress = new Uri("https://query1.finance.yahoo.com/");
+    client.DefaultRequestHeaders.UserAgent.ParseAdd(
+        "Mozilla/5.0 (compatible; PersonalFinanceApp/1.0)"
+    );
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+
+builder.Services.AddMemoryCache();
+
+// Controllers và JSON
 builder.Services.AddControllers()
     .AddJsonOptions(options =>
     {
-        // Lệnh này giúp cắt đứt vòng lặp vô tận khi gửi dữ liệu có chứa khóa ngoại (JOIN)
-        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.ReferenceHandler =
+            System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
     });
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// CORS cho React
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("ReactPolicy",
-        policy =>
-        {
-            policy.WithOrigins("http://localhost:3000") // React port
-                  .AllowAnyHeader()
-                  .AllowAnyMethod();
-        });
+    options.AddPolicy("ReactPolicy", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000")
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
 });
 
 // Cấu hình JWT
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
+var jwtKey = builder.Configuration["Jwt:Key"];
+
+if (string.IsNullOrWhiteSpace(jwtKey))
+{
+    throw new InvalidOperationException(
+        "Chưa cấu hình Jwt:Key trong appsettings.json hoặc User Secrets."
+    );
+}
+
+builder.Services.AddAuthentication(
+    JwtBearerDefaults.AuthenticationScheme
+)
+.AddJwtBearer(options =>
+{
+    options.TokenValidationParameters = new TokenValidationParameters
     {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8
-                .GetBytes(builder.Configuration.GetSection("Jwt:Key").Value!)),
-            ValidateIssuer = false,
-            ValidateAudience = false
-        };
-    });
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(jwtKey)
+        ),
+        ValidateIssuer = false,
+        ValidateAudience = false
+    };
+});
+
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
-// --- BẮT ĐẦU ĐOẠN CODE TEST KẾT NỐI ---
+// Kiểm tra kết nối SQL Server
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
+
     try
     {
-        var context = services.GetRequiredService<PersonalFinanceDbContext>();
+        var context =
+            services.GetRequiredService<PersonalFinanceDbContext>();
 
-        // Dùng lệnh này để ép mở kết nối, nếu lỗi nó sẽ văng thẳng xuống catch
         context.Database.OpenConnection();
 
-        Console.WriteLine("\n=================================================");
-        Console.WriteLine("✅ KẾT NỐI DATABASE THÀNH CÔNG RỰC RỠ!");
-        Console.WriteLine("=================================================\n");
+        Console.WriteLine(
+            "\n================================================="
+        );
+        Console.WriteLine("KET NOI DATABASE THANH CONG!");
+        Console.WriteLine(
+            "=================================================\n"
+        );
 
         context.Database.CloseConnection();
     }
     catch (Exception ex)
     {
-        Console.WriteLine("\n=================================================");
-        Console.WriteLine("❌ LỖI GỐC CỦA SQL SERVER LÀ: ");
-        Console.WriteLine(ex.Message); // IN RA CHI TIẾT LỖI
-        Console.WriteLine("=================================================\n");
+        Console.WriteLine(
+            "\n================================================="
+        );
+        Console.WriteLine("LOI KET NOI SQL SERVER:");
+        Console.WriteLine(ex.Message);
+        Console.WriteLine(
+            "=================================================\n"
+        );
     }
 }
-// --- KẾT THÚC ĐOẠN CODE TEST KẾT NỐI ---
 
+// Swagger
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-// Configure the HTTP request pipeline.
+// Middleware
 app.UseHttpsRedirection();
 
 app.UseCors("ReactPolicy");
@@ -92,3 +144,45 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+internal sealed class LegacyDatabaseModelCustomizer : ModelCustomizer
+{
+    public LegacyDatabaseModelCustomizer(
+        ModelCustomizerDependencies dependencies
+    ) : base(dependencies)
+    {
+    }
+
+    public override void Customize(
+        ModelBuilder modelBuilder,
+        DbContext context
+    )
+    {
+        base.Customize(modelBuilder, context);
+
+        modelBuilder.Entity<Investment>()
+            .Ignore(investment => investment.Quantity);
+
+        var transaction = modelBuilder.Entity<Transaction>();
+
+        var idempotencyKey = transaction.Metadata.FindProperty(
+            nameof(Transaction.IdempotencyKey)
+        );
+
+        if (idempotencyKey != null)
+        {
+            var idempotencyIndex =
+                transaction.Metadata.FindIndex([idempotencyKey]);
+
+            if (idempotencyIndex != null)
+            {
+                transaction.Metadata.RemoveIndex(idempotencyIndex);
+            }
+        }
+
+        transaction.Ignore(item => item.IdempotencyKey);
+        transaction.Ignore(item => item.Quantity);
+        transaction.Ignore(item => item.UnitPrice);
+        transaction.Ignore(item => item.RealizedProfitLoss);
+    }
+}

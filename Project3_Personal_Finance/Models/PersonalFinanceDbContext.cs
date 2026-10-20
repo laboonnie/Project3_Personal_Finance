@@ -33,7 +33,6 @@ public partial class PersonalFinanceDbContext : DbContext
     public virtual DbSet<PasswordResetToken> PasswordResetTokens { get; set; }
     public virtual DbSet<Notification> Notifications { get; set; }
     public virtual DbSet<BudgetCarriedOver> BudgetCarriedOvers { get; set; }
-    public virtual DbSet<TransactionEditHistory> TransactionEditHistories { get; set; }
     public virtual DbSet<RemainingAction> RemainingActions { get; set; }
 
 
@@ -126,6 +125,7 @@ public partial class PersonalFinanceDbContext : DbContext
             entity.Property(e => e.AssetName).HasMaxLength(200);
             entity.Property(e => e.AssetType).HasMaxLength(100);
             entity.Property(e => e.CurrentValue).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.Quantity).HasColumnType("decimal(18, 6)");
 
             entity.HasOne(d => d.User).WithMany(p => p.Investments)
                 .HasForeignKey(d => d.UserId)
@@ -141,8 +141,14 @@ public partial class PersonalFinanceDbContext : DbContext
             entity.HasKey(e => e.Id).HasName("PK__Transact__3214EC07D28B0277");
 
             entity.Property(e => e.Amount).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.Quantity).HasColumnType("decimal(18, 6)");
+            entity.Property(e => e.UnitPrice).HasColumnType("decimal(18, 2)");
+            entity.Property(e => e.RealizedProfitLoss).HasColumnType("decimal(18, 2)");
             entity.Property(e => e.Note).HasMaxLength(300);
             entity.Property(e => e.Type).HasMaxLength(20);
+            entity.HasIndex(e => e.IdempotencyKey)
+                .IsUnique()
+                .HasFilter("[IdempotencyKey] IS NOT NULL");
 
             entity.HasOne(d => d.Category).WithMany(p => p.Transactions)
                 .HasForeignKey(d => d.CategoryId)
@@ -226,56 +232,6 @@ public partial class PersonalFinanceDbContext : DbContext
 
             entity.HasOne(d => d.Jar).WithMany()
                 .HasForeignKey(d => d.JarId)
-                .OnDelete(DeleteBehavior.ClientSetNull);
-        });
-        modelBuilder.Entity<TransactionEditHistory>(entity =>
-        {
-        entity.ToTable("RemainingActions");
-
-            entity.HasKey(e => e.Id);
-
-            entity.ToTable("TransactionEditHistory");
-
-            entity.HasKey(e => e.Id);
-
-            entity.Property(e => e.OldAmount)
-                .HasColumnType("decimal(18, 2)");
-
-            entity.Property(e => e.NewAmount)
-                .HasColumnType("decimal(18, 2)");
-
-            entity.Property(e => e.OldType)
-                .HasMaxLength(20)
-                .IsRequired();
-
-            entity.Property(e => e.NewType)
-                .HasMaxLength(20)
-                .IsRequired();
-
-            entity.Property(e => e.OldNote)
-                .HasMaxLength(500);
-
-            entity.Property(e => e.NewNote)
-                .HasMaxLength(500);
-
-            entity.Property(e => e.OldTransactionDate)
-                .HasColumnType("date");
-
-            entity.Property(e => e.NewTransactionDate)
-                .HasColumnType("date");
-
-            entity.Property(e => e.EditedAt)
-                .HasDefaultValueSql("(getdate())")
-                .HasColumnType("datetime");
-
-            entity.HasOne(d => d.Transaction)
-                .WithMany()
-                .HasForeignKey(d => d.TransactionId)
-                .OnDelete(DeleteBehavior.ClientSetNull);
-
-            entity.HasOne(d => d.User)
-                .WithMany()
-                .HasForeignKey(d => d.UserId)
                 .OnDelete(DeleteBehavior.ClientSetNull);
         });
         modelBuilder.Entity<RemainingAction>(entity =>

@@ -18,6 +18,12 @@ using System.Net.Mail;
 
 namespace Project3_Personal_Finance.Controllers
 {
+    public class ResetPasswordDto
+    {
+        public string Token { get; set; } = null!;
+        public string NewPassword { get; set; } = null!;
+    }
+
     [Route("api/[controller]")]
     [ApiController]
     public class UsersController : ControllerBase
@@ -92,7 +98,7 @@ namespace Project3_Personal_Finance.Controllers
             });
         }
 
-        // 3. FORGOT PASSWORD
+        // 3. FORGOT PASSWORD (Tạo Token & Gửi Email)
         [HttpPost("forgot-password")]
         public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto request)
         {
@@ -102,46 +108,86 @@ namespace Project3_Personal_Finance.Controllers
                 return BadRequest(new { message = "Email không tồn tại trong hệ thống!" });
             }
 
-            string tempPassword = Guid.NewGuid().ToString().Substring(0, 8);
+            // 1. Tạo Token ngẫu nhiên và thời gian hết hạn (ví dụ: 15 phút)
+            string resetToken = Guid.NewGuid().ToString("N");
 
-            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(tempPassword);
+            var passwordReset = new PasswordResetToken
+            {
+                UserId = user.Id,
+                Token = resetToken,
+                ExpiresAt = DateTime.Now.AddMinutes(15),
+                IsUsed = false,
+                CreatedAt = DateTime.Now
+            };
+
+            // 2. Lưu vào bảng PasswordResetToken
+            _context.PasswordResetTokens.Add(passwordReset);
             await _context.SaveChangesAsync();
 
+            // 3. Gửi Email kèm Link khôi phục
             try
             {
-                string fromEmail = "viethoangb05@gmail.com";
-                string appPassword = "madf pndo rpzb odjj";
+                string fromEmail = _configuration["EmailSettings:FromEmail"] ?? "thao.ntp.2424@aptechlearning.edu.vn";
+                string appPassword = (_configuration["EmailSettings:AppPassword"] ?? "oprd csay ecmh yeut").Replace(" ", "");
 
-                var smtpClient = new SmtpClient("smtp.gmail.com")
+                // Đường dẫn trên giao diện React dẫn tới trang Reset Password
+                string resetLink = $"http://localhost:3000/reset-password?token={resetToken}";
+
+                using (var smtpClient = new SmtpClient("smtp.gmail.com"))
                 {
-                    Port = 587,
-                    Credentials = new NetworkCredential(fromEmail, appPassword),
-                    EnableSsl = true,
-                };
+                    smtpClient.Port = 587;
+                    smtpClient.Credentials = new NetworkCredential(fromEmail, appPassword);
+                    smtpClient.EnableSsl = true;
 
-                var mailMessage = new MailMessage
-                {
-                    From = new MailAddress(fromEmail, "Finance App Support"),
-                    Subject = "Khôi phục mật khẩu - Personal Finance",
-                    Body = $@"
-                        <h3>Xin chào {user.Name},</h3>
-                        <p>Hệ thống đã nhận được yêu cầu khôi phục mật khẩu của bạn.</p>
-                        <p>Mật khẩu đăng nhập tạm thời của bạn là: <b style='color: red; font-size: 18px;'>{tempPassword}</b></p>
-                        <p>Vui lòng đăng nhập và đổi lại mật khẩu của riêng bạn ngay lập tức để đảm bảo an toàn.</p>
-                        <br/>
-                        <p>Trân trọng,<br/>Đội ngũ Personal Finance</p>",
-                    IsBodyHtml = true,
-                };
+                    var mailMessage = new MailMessage
+                    {
+                        From = new MailAddress(fromEmail, "Finance App Support"),
+                        Subject = "Yêu cầu đặt lại mật khẩu - Personal Finance",
+                        Body = $@"
+                    <h3>Xin chào {user.Name},</h3>
+                    <p>Bạn vừa yêu cầu đặt lại mật khẩu cho tài khoản Personal Finance.</p>
+                    <p>Vui lòng bấm vào liên kết dưới đây để tiến hành đặt mật khẩu mới (Liên kết có hiệu lực trong 15 phút):</p>
+                    <p><a href='{resetLink}' style='background-color: #3182ce; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; display: inline-block;'>Đặt lại mật khẩu</a></p>
+                    <p>Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email này.</p>",
+                        IsBodyHtml = true,
+                    };
 
-                mailMessage.To.Add(user.Email);
-                await smtpClient.SendMailAsync(mailMessage);
+                    mailMessage.To.Add(user.Email);
+                    await smtpClient.SendMailAsync(mailMessage);
+                }
 
-                return Ok(new { message = "Mật khẩu mới đã được gửi. Vui lòng kiểm tra hộp thư (hoặc mục Spam) của bạn!" });
+                return Ok(new { message = "Email hướng dẫn đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư!" });
             }
             catch (Exception ex)
             {
                 return BadRequest(new { message = $"Lỗi khi gửi email: {ex.Message}" });
             }
+        }
+
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto request)
+        {
+            // Kiểm tra token có tồn tại, chưa dùng và chưa hết hạn
+            var resetRecord = await _context.PasswordResetTokens
+                .Include(p => p.User)
+                .FirstOrDefaultAsync(p => p.Token == request.Token
+                                       && !p.IsUsed
+                                       && p.ExpiresAt > DateTime.Now);
+
+            if (resetRecord == null)
+            {
+                return BadRequest(new { message = "Mã xác nhận không hợp lệ hoặc đã hết hạn!" });
+            }
+
+            // Cập nhật mật khẩu mới cho User
+            resetRecord.User.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+
+            // Đánh dấu Token đã được sử dụng
+            resetRecord.IsUsed = true;
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Đặt lại mật khẩu thành công! Bạn có thể đăng nhập ngay bây giờ." });
         }
 
         private int GetCurrentUserId()
