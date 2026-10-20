@@ -1,470 +1,122 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { remainingActionApi } from '../../api/remainingActionApi';
 
 const ACTIONS = [
-    {
-        value: 'CARRY_OVER',
-        label: 'Carry over to next month'
-    },
-    {
-        value: 'JAR',
-        label: 'Add to a jar'
-    },
-    {
-        value: 'GOAL',
-        label: 'Add to a goal'
-    },
-    {
-        value: 'DEBT',
-        label: 'Pay debt'
-    },
-    {
-        value: 'INVESTMENT',
-        label: 'Add to investment'
-    },
-    {
-        value: 'KEEP',
-        label: 'Keep as cash'
-    }
+    { value: 'CARRY_OVER', label: 'Carry over to next month' },
+    { value: 'JAR', label: 'Add to a jar (next month)' },
+    { value: 'KEEP', label: 'Keep as cash (Coming soon)' }
 ];
 
-const RemainingMoneyModal = ({
-                                 month,
-                                 year,
-                                 availableAmount,
-                                 jars = [],
-                                 goals = [],
-                                 debts = [],
-                                 investments = [],
-                                 onClose,
-                                 onSuccess
-                             }) => {
-    const [actionType, setActionType] =
-        useState('CARRY_OVER');
+const RemainingMoneyModal = ({ month, year, availableAmount, jars = [], onClose, onSuccess }) => {
+    const [actionType, setActionType] = useState('CARRY_OVER');
+    const [sourceJarId, setSourceJarId] = useState('');
+    const [targetJarId, setTargetJarId] = useState('');
+    const [amount, setAmount] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+    const formatMoney = v => new Intl.NumberFormat('vi-VN').format(v || 0) + 'đ';
+    const next = new Date(year, month, 1); // month is 1-based: next month
+    const selectedSource = jars.find(j => Number(j.jarId) === Number(sourceJarId));
+    const sourceAvailable = selectedSource
+        ? Math.max(0, Math.min(Number(selectedSource.remaining || 0), Number(selectedSource.budgetAmount || 0)))
+        : 0;
+    const maxAmount = actionType === 'JAR'
+        ? Math.max(0, Math.min(Number(availableAmount || 0), sourceAvailable))
+        : Number(availableAmount || 0);
 
-    const [amount, setAmount] =
-        useState('');
-
-    const [targetJarId, setTargetJarId] =
-        useState('');
-
-    const [goalId, setGoalId] =
-        useState('');
-
-    const [debtId, setDebtId] =
-        useState('');
-
-    const [investmentId, setInvestmentId] =
-        useState('');
-
-    const [loading, setLoading] =
-        useState(false);
-
-    const [error, setError] =
-        useState('');
-
-    useEffect(() => {
-        setError('');
-        setTargetJarId('');
-        setGoalId('');
-        setDebtId('');
-        setInvestmentId('');
-    }, [actionType]);
-
-    const formatMoney = (value) => {
-        return new Intl.NumberFormat('vi-VN')
-            .format(value || 0) + 'đ';
-    };
-
-    const handleUseAll = () => {
-        setAmount(availableAmount);
-    };
-
-    const validate = () => {
-        const numericAmount =
-            Number(amount);
-
-        if (!Number.isFinite(numericAmount) ||
-            numericAmount <= 0) {
-            return 'Please enter a valid amount.';
-        }
-
-        if (numericAmount >
-            availableAmount) {
-            return 'Amount cannot exceed the available balance.';
-        }
-
-        if (actionType === 'CARRY_OVER' &&
-            !targetJarId) {
-            return 'Please select a destination jar.';
-        }
-
-        if (actionType === 'JAR' &&
-            !targetJarId) {
-            return 'Please select a jar.';
-        }
-
-        if (actionType === 'GOAL' &&
-            !goalId) {
-            return 'Please select a goal.';
-        }
-
-        if (actionType === 'DEBT' &&
-            !debtId) {
-            return 'Please select a debt.';
-        }
-
-        if (actionType === 'INVESTMENT' &&
-            !investmentId) {
-            return 'Please select an investment.';
-        }
-
-        return null;
-    };
-
-    const handleSubmit = async (e) => {
+    const handleSubmit = async e => {
         e.preventDefault();
-
         setError('');
-
-        const validationError =
-            validate();
-
-        if (validationError) {
-            setError(validationError);
+        const value = Number(amount);
+        if (!Number.isFinite(value) || value <= 0 || value > maxAmount) {
+            setError('Amount must be positive and cannot exceed the available balance.');
             return;
         }
-
-        if (['JAR', 'KEEP'].includes(actionType)) {
-            setError('This action is not available yet.');
+        if (actionType === 'KEEP') return;
+        if (actionType === 'JAR' && (!sourceJarId || !targetJarId || sourceJarId === targetJarId)) {
+            setError('Choose two different jars.');
             return;
         }
-
-        const payload = {
-            month,
-            year,
-            amount: Number(amount),
-            actionType,
-
-            targetJarId:
-                (actionType === 'JAR' || actionType === 'CARRY_OVER')
-                    ? Number(targetJarId)
-                    : null,
-
-            goalId:
-                actionType === 'GOAL'
-                    ? Number(goalId)
-                    : null,
-
-            debtId:
-                actionType === 'DEBT'
-                    ? Number(debtId)
-                    : null,
-
-            investmentId:
-                actionType === 'INVESTMENT'
-                    ? Number(investmentId)
-                    : null
-        };
-
+        if (actionType === 'CARRY_OVER' && !targetJarId) {
+            setError('Please select a jar.');
+            return;
+        }
         try {
             setLoading(true);
-
-            if (actionType === 'CARRY_OVER') {
-                await remainingActionApi.createCarryOver(payload);
+            if (actionType === 'JAR') {
+                await remainingActionApi.createJarTransfer({
+                    month, year, amount: value,
+                    sourceJarId: Number(sourceJarId), targetJarId: Number(targetJarId)
+                });
             } else {
-                await remainingActionApi.create(payload);
+                await remainingActionApi.createCarryOver({
+                    month, year, amount: value, actionType: 'CARRY_OVER',
+                    targetJarId: Number(targetJarId)
+                });
             }
-
-            if (typeof onSuccess === 'function') {
-                await onSuccess();
-            }
+            if (onSuccess) await onSuccess();
         } catch (err) {
-            console.error(
-                'Error managing remaining money:',
-                err
-            );
-
-            setError(
-                err.response?.data?.message ||
-                'Unable to manage remaining money.'
-            );
+            setError(err.response?.data?.message || 'Unable to transfer money.');
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div
-            className="modal-overlay"
-            onClick={onClose}
-        >
-            <div
-                className="modal-content remaining-modal"
-                onClick={(e) =>
-                    e.stopPropagation()
-                }
-            >
+        <div className="modal-overlay" onClick={onClose}>
+            <div className="modal-content remaining-modal" onClick={e => e.stopPropagation()}>
                 <div className="remaining-modal-header">
-                    <div>
-                        <h3>
-                            Manage remaining money
-                        </h3>
-
-                        <p>
-                            Month {month}/{year}
-                        </p>
-                    </div>
-
-                    <button
-                        type="button"
-                        className="modal-close"
-                        onClick={onClose}
-                        aria-label="Close"
-                    >
-                        ×
-                    </button>
+                    <div><h3>Manage remaining money</h3><p>Month {month}/{year}</p></div>
+                    <button type="button" className="modal-close" onClick={onClose} aria-label="Close">×</button>
                 </div>
-
-                <div className="available-box">
-                    <span>
-                        Available to manage
-                    </span>
-
-                    <strong>
-                        {formatMoney(
-                            availableAmount
-                        )}
-                    </strong>
-                </div>
-
+                <div className="available-box"><span>Available to manage</span><strong>{formatMoney(availableAmount)}</strong></div>
                 <form onSubmit={handleSubmit}>
-
                     <div className="form-group">
-                        <label>
-                            Action
-                        </label>
-
-                        <select
-                            value={actionType}
-                            onChange={(e) =>
-                                setActionType(
-                                    e.target.value
-                                )
-                            }
-                        >
-                            {ACTIONS.map(action => (
-                                <option
-                                    key={action.value}
-                                    value={action.value}
-                                >
-                                    {action.label}{['JAR', 'KEEP'].includes(action.value) ? ' (Coming soon)' : ''}
-                                </option>
-                            ))}
+                        <label>Action</label>
+                        <select value={actionType} onChange={e => {
+                            setActionType(e.target.value); setSourceJarId(''); setTargetJarId(''); setAmount(''); setError('');
+                        }}>
+                            {ACTIONS.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
                         </select>
                     </div>
-
+                    {actionType === 'JAR' && (
+                        <div className="form-group">
+                            <label>Source jar (this month)</label>
+                            <select value={sourceJarId} onChange={e => { setSourceJarId(e.target.value); setAmount(''); }}>
+                                <option value="">Select source jar</option>
+                                {jars.map(j => <option key={j.jarId} value={j.jarId}>
+                                    {j.jarName} — remaining {formatMoney(j.remaining)}
+                                </option>)}
+                            </select>
+                        </div>
+                    )}
                     {(actionType === 'JAR' || actionType === 'CARRY_OVER') && (
                         <div className="form-group">
-                            <label>
-                                Jar
-                            </label>
-
-                            <select
-                                value={targetJarId}
-                                onChange={(e) =>
-                                    setTargetJarId(
-                                        e.target.value
-                                    )
-                                }
-                            >
-                                <option value="">
-                                    Select a jar
-                                </option>
-
-                                {jars.map(jar => (
-                                    <option
-                                        key={jar.jarId}
-                                        value={jar.jarId}
-                                    >
-                                        {jar.jarName}
-                                    </option>
-                                ))}
+                            <label>{actionType === 'JAR' ? 'Destination jar (next month)' : 'Jar to carry over'}</label>
+                            <select value={targetJarId} onChange={e => setTargetJarId(e.target.value)}>
+                                <option value="">Select destination jar</option>
+                                {jars.filter(j => actionType !== 'JAR' || String(j.jarId) !== sourceJarId)
+                                    .map(j => <option key={j.jarId} value={j.jarId}>{j.jarName}</option>)}
                             </select>
                         </div>
                     )}
-
-                    {actionType === 'GOAL' && (
-                        <div className="form-group">
-                            <label>
-                                Goal
-                            </label>
-
-                            <select
-                                value={goalId}
-                                onChange={(e) =>
-                                    setGoalId(
-                                        e.target.value
-                                    )
-                                }
-                            >
-                                <option value="">
-                                    Select a goal
-                                </option>
-
-                                {goals.map(goal => (
-                                    <option
-                                        key={goal.id}
-                                        value={goal.id}
-                                    >
-                                        {goal.goalName}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
-
-                    {actionType === 'DEBT' && (
-                        <div className="form-group">
-                            <label>
-                                Debt
-                            </label>
-
-                            <select
-                                value={debtId}
-                                onChange={(e) =>
-                                    setDebtId(
-                                        e.target.value
-                                    )
-                                }
-                            >
-                                <option value="">
-                                    Select a debt
-                                </option>
-
-                                {debts.map(debt => (
-                                    <option
-                                        key={debt.id}
-                                        value={debt.id}
-                                    >
-                                        {debt.debtName}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-                    )}
-
-                    {actionType ===
-                        'INVESTMENT' && (
-                            <div className="form-group">
-                                <label>
-                                    Investment
-                                </label>
-
-                                <select
-                                    value={investmentId}
-                                    onChange={(e) =>
-                                        setInvestmentId(
-                                            e.target.value
-                                        )
-                                    }
-                                >
-                                    <option value="">
-                                        Select an investment
-                                    </option>
-
-                                    {investments.map(
-                                        investment => (
-                                            <option
-                                                key={
-                                                    investment.id
-                                                }
-                                                value={
-                                                    investment.id
-                                                }
-                                            >
-                                                {
-                                                    investment.assetName
-                                                }
-                                            </option>
-                                        )
-                                    )}
-                                </select>
-                            </div>
-                        )}
-
+                    <p>Destination month: {next.getMonth() + 1}/{next.getFullYear()}</p>
                     <div className="form-group">
-                        <div className="amount-label-row">
-                            <label>
-                                Amount
-                            </label>
-
-                            <button
-                                type="button"
-                                className="use-all-btn"
-                                onClick={
-                                    handleUseAll
-                                }
-                            >
-                                Use all
-                            </button>
+                        <div className="amount-label-row"><label>Amount</label>
+                            <button type="button" className="use-all-btn" onClick={() => setAmount(String(maxAmount))}>Use all</button>
                         </div>
-
-                        <input
-                            type="number"
-                            min="1"
-                            max={availableAmount}
-                            step="1"
-                            value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
-                            placeholder="Enter amount"
-                            required
-                        />
-                        {amount &&
-                            Number(amount) > 0 && (
-                                <small className="amount-preview">
-                                    {
-                                        formatMoney(
-                                            Number(amount)
-                                        )
-                                    }
-                                </small>
-                            )}
+                        <input type="number" min="1" step="1" max={maxAmount} value={amount}
+                               onChange={e => setAmount(e.target.value)} placeholder="Enter amount" required />
+                        {amount && Number(amount) > 0 && <small className="amount-preview">{formatMoney(Number(amount))}</small>}
                     </div>
-
-                    {error && (
-                        <div className="remaining-error">
-                            {error}
-                        </div>
-                    )}
-
-                    {['JAR', 'KEEP'].includes(actionType) && (
-                        <div className="remaining-error">
-                            This action is temporarily unavailable.
-                        </div>
-                    )}
-
+                    {actionType === 'KEEP' && <div className="remaining-error">This action is temporarily unavailable.</div>}
+                    {error && <div className="remaining-error">{error}</div>}
                     <div className="form-actions">
-                        <button
-                            type="button"
-                            className="btn-cancel"
-                            onClick={onClose}
-                            disabled={loading}
-                        >
-                            Cancel
-                        </button>
-
-                        <button
-                            type="submit"
-                            className="btn-save"
-                            disabled={loading || ['JAR', 'KEEP'].includes(actionType)}
-                        >
-                            {loading
-                                ? 'Processing...'
-                                : 'Confirm'}
+                        <button type="button" className="btn-cancel" onClick={onClose} disabled={loading}>Cancel</button>
+                        <button type="submit" className="btn-save" disabled={loading || actionType === 'KEEP'}>
+                            {loading ? 'Processing...' : 'Confirm'}
                         </button>
                     </div>
-
                 </form>
             </div>
         </div>

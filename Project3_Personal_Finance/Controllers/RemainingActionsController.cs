@@ -8,6 +8,15 @@ using System.Data;
 
 namespace Project3_Personal_Finance.Controllers
 {
+    public class JarTransferRequest
+    {
+        public int Month { get; set; }
+        public int Year { get; set; }
+        public int SourceJarId { get; set; }
+        public int TargetJarId { get; set; }
+        public decimal Amount { get; set; }
+    }
+
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
@@ -80,188 +89,160 @@ namespace Project3_Personal_Finance.Controllers
                 return BadRequest(new { message = "Invalid month or year." });
 
             var userId = GetCurrentUserId();
-            var actions = await _context.BudgetCarriedOvers
+            var rows = await _context.BudgetCarriedOvers
                 .AsNoTracking()
                 .Where(c => c.UserId == userId && c.FromMonth == month && c.FromYear == year)
                 .OrderByDescending(c => c.CreatedAt)
                 .ThenByDescending(c => c.Id)
-                .Select(c => new
-                {
-                    c.Id,
-                    Month = c.FromMonth,
-                    Year = c.FromYear,
-                    Amount = c.CarriedAmount,
-                    ActionType = "CARRY_OVER",
-                    TargetJarId = (int?)c.JarId,
-                    TargetJarName = c.Jar.JarName,
-                    GoalId = (int?)null,
-                    GoalName = (string?)null,
-                    DebtId = (int?)null,
-                    DebtName = (string?)null,
-                    InvestmentId = (int?)null,
-                    InvestmentName = (string?)null,
-                    c.CreatedAt
-                })
+                .Select(c => new { c.Id, c.FromMonth, c.FromYear, c.CarriedAmount,
+                                   c.JarId, TargetJarName = c.Jar.JarName, c.CreatedAt })
                 .ToListAsync();
+            var notes = await _context.Notifications.AsNoTracking()
+                .Where(n => n.UserId == userId && n.Type == "JAR_TRANSFER")
+                .Select(n => n.Message).ToListAsync();
+            var jarNames = await _context.FinancialJars
+                .AsNoTracking().ToDictionaryAsync(j => j.Id, j => j.JarName);
+            var transferSources = new Dictionary<int, int>();
+            foreach (var note in notes)
+            {
+                var match = System.Text.RegularExpressions.Regex.Match(note ?? "",
+                    @"\[JAR_TRANSFER:(\d+):(\d+):(\d+)\]");
+                if (match.Success && int.TryParse(match.Groups[1].Value, out var id) &&
+                    int.TryParse(match.Groups[2].Value, out var sourceId) &&
+                    int.TryParse(match.Groups[3].Value, out var targetId))
+                    transferSources[id] = sourceId;
+            }
+            var actions = rows.Select(c => new {
+                c.Id,
+                Month = c.FromMonth,
+                Year = c.FromYear,
+                Amount = c.CarriedAmount,
+                ActionType = transferSources.ContainsKey(c.Id) ? "JAR" : "CARRY_OVER",
+                SourceJarId = transferSources.TryGetValue(c.Id, out var source) ? (int?)source : c.JarId,
+                SourceJarName = transferSources.TryGetValue(c.Id, out var sourceNameId) &&
+                    jarNames.TryGetValue(sourceNameId, out var sourceName) ? sourceName : c.TargetJarName,
+                TargetJarId = c.JarId,
+                c.TargetJarName,
+                c.CreatedAt
+            }).ToList();
             return Ok(actions);
         }
 
-        // GOAL / DEBT / INVESTMENT allocations are recorded as Expense transactions.
-        // This lets the existing monthly remaining calculation subtract them once.
-        [HttpPost]
-        public async Task<IActionResult> CreateAction([FromBody] RemainingActionDto request)
+        // Transfer a source jar's remaining budget this month to a different jar next month.
+        // No schema changes: source BudgetAmount decreases; destination receives a
+        // BudgetCarriedOver entry. The transfer marker is stored in Notifications.
+        [HttpPost("jar-transfer")]
+        public async Task<IActionResult> TransferToJar([FromBody] JarTransferRequest request)
         {
             if (request == null || request.Month < 1 || request.Month > 12 ||
                 request.Year < 2000 || request.Year > 2100 ||
-                request.Amount <= 0m)
-                return BadRequest(new { message = "Invalid allocation request." });
-
-            var action = (request.ActionType ?? "").Trim().ToUpperInvariant();
-            if (action != "GOAL" && action != "DEBT" && action != "INVESTMENT")
-                return BadRequest(new { message = "Use GOAL, DEBT or INVESTMENT. Carry Over uses /carry-over." });
-
-            if ((action == "GOAL" && (!request.GoalId.HasValue || request.DebtId.HasValue || request.InvestmentId.HasValue)) ||
-                (action == "DEBT" && (!request.DebtId.HasValue || request.GoalId.HasValue || request.InvestmentId.HasValue)) ||
-                (action == "INVESTMENT" && (!request.InvestmentId.HasValue || request.GoalId.HasValue || request.DebtId.HasValue)))
-                return BadRequest(new { message = "Provide only the matching target ID." });
+                (request.Year == 2100 && request.Month == 12) ||
+                request.Amount <= 0 || request.SourceJarId <= 0 || request.TargetJarId <= 0 ||
+                request.SourceJarId == request.TargetJarId)
+                return BadRequest(new { message = "Invalid jar transfer request. Choose two different jars." });
 
             var userId = GetCurrentUserId();
-            var start = new DateTime(request.Year, request.Month, 1);
-            var end = start.AddMonths(1);
-            // Do not backdate a newly created allocation or allocate to a future month.
-            var today = DateTime.Today;
-            if (today < start || today >= end)
-                return BadRequest(new { message = "Allocations are supported for the current month only." });
+            var from = new DateTime(request.Year, request.Month, 1);
+            var next = from.AddMonths(1);
 
             await using var dbTransaction = await _context.Database
                 .BeginTransactionAsync(IsolationLevel.Serializable);
 
-            var categoryName = action == "GOAL" ? "Saving" :
-                               action == "DEBT" ? "Debt Payment" : "Investment";
-            var categories = await _context.Categories
-                .Where(c => c.Name == categoryName && c.Type == "Expense")
-                .Select(c => new { c.Id, c.JarId }).ToListAsync();
-            if (categories.Count != 1)
-                return Conflict(new { message = $"Expected exactly one Expense category named {categoryName}." });
-            var category = categories[0];
-            var jarId = category.JarId;
-            if (request.TargetJarId.HasValue && request.TargetJarId.Value != jarId)
-                return BadRequest(new { message = "Selected jar does not match the allocation category." });
+            var sourceJar = await _context.FinancialJars
+                .FirstOrDefaultAsync(j => j.Id == request.SourceJarId);
+            var targetJar = await _context.FinancialJars
+                .FirstOrDefaultAsync(j => j.Id == request.TargetJarId);
+            if (sourceJar == null || targetJar == null)
+                return BadRequest(new { message = "Source or destination jar not found." });
 
-            string targetName;
-            if (action == "GOAL")
-            {
-                var goal = await _context.Goals.FirstOrDefaultAsync(g =>
-                    g.Id == request.GoalId!.Value && g.UserId == userId);
-                if (goal == null) return NotFound(new { message = "Goal not found." });
-                if (goal.JarId.HasValue && goal.JarId.Value != jarId)
-                    return BadRequest(new { message = "Goal belongs to a different jar." });
-                var current = goal.CurrentAmount ?? 0m;
-                if (goal.TargetAmount.HasValue && current + request.Amount > goal.TargetAmount.Value)
-                    return BadRequest(new { message = "Amount exceeds the goal target." });
-                goal.CurrentAmount = current + request.Amount;
-                targetName = goal.GoalName ?? $"Goal #{goal.Id}";
-            }
-            else if (action == "DEBT")
-            {
-                var debt = await _context.Debts.FirstOrDefaultAsync(d =>
-                    d.Id == request.DebtId!.Value && d.UserId == userId);
-                if (debt == null) return NotFound(new { message = "Debt not found." });
-                if (debt.JarId.HasValue && debt.JarId.Value != jarId)
-                    return BadRequest(new { message = "Debt belongs to a different jar." });
-                if (!debt.RemainingAmount.HasValue || debt.RemainingAmount.Value < request.Amount)
-                    return BadRequest(new { message = "Amount exceeds the remaining debt." });
-                debt.RemainingAmount -= request.Amount;
-                targetName = debt.DebtName ?? $"Debt #{debt.Id}";
-            }
-            else
-            {
-                var investment = await _context.Investments.FirstOrDefaultAsync(i =>
-                    i.Id == request.InvestmentId!.Value && i.UserId == userId);
-                if (investment == null) return NotFound(new { message = "Investment not found." });
-                if (investment.JarId.HasValue && investment.JarId.Value != jarId)
-                    return BadRequest(new { message = "Investment belongs to a different jar." });
-                investment.AmountInvested = (investment.AmountInvested ?? 0m) + request.Amount;
-                // CurrentValue is a valuation, not a cash contribution; leave it unchanged.
-                targetName = investment.AssetName ?? $"Investment #{investment.Id}";
-            }
+            var sourceBudgets = await _context.Budgets.Where(b =>
+                b.UserId == userId && b.JarId == request.SourceJarId &&
+                b.Month == request.Month && b.Year == request.Year).ToListAsync();
+            if (sourceBudgets.Count != 1)
+                return BadRequest(new { message = "Source jar must have exactly one budget for this month." });
+            var sourceBudget = sourceBudgets[0];
 
-            var budgetAmounts = await _context.Budgets
-                .Where(b => b.UserId == userId && b.JarId == jarId &&
-                            b.Month == request.Month && b.Year == request.Year)
-                .Select(b => b.BudgetAmount).ToListAsync();
-            if (budgetAmounts.Count != 1)
-                return BadRequest(new { message = "Exactly one monthly budget is required for this jar." });
-
-            var jarSpent = await _context.Transactions
-                .Where(t => t.UserId == userId && t.Type == "Expense" &&
-                            t.TransactionDate >= start && t.TransactionDate < end &&
-                            t.Category.JarId == jarId)
+            var spent = await _context.Transactions.Where(t =>
+                t.UserId == userId && t.Type == "Expense" &&
+                t.TransactionDate >= from && t.TransactionDate < next &&
+                t.Category.JarId == request.SourceJarId)
                 .SumAsync(t => (decimal?)t.Amount) ?? 0m;
-            var jarCarriedIn = await _context.BudgetCarriedOvers
-                .Where(c => c.UserId == userId && c.JarId == jarId &&
-                            c.ToMonth == request.Month && c.ToYear == request.Year)
+            var sourceCarriedIn = await _context.BudgetCarriedOvers.Where(c =>
+                c.UserId == userId && c.JarId == request.SourceJarId &&
+                c.ToMonth == request.Month && c.ToYear == request.Year)
                 .SumAsync(c => (decimal?)c.CarriedAmount) ?? 0m;
-            var jarCarriedOut = await _context.BudgetCarriedOvers
-                .Where(c => c.UserId == userId && c.JarId == jarId &&
-                            c.FromMonth == request.Month && c.FromYear == request.Year)
+            var sourceCarriedOut = await _context.BudgetCarriedOvers.Where(c =>
+                c.UserId == userId && c.JarId == request.SourceJarId &&
+                c.FromMonth == request.Month && c.FromYear == request.Year)
                 .SumAsync(c => (decimal?)c.CarriedAmount) ?? 0m;
-            var jarAvailable = budgetAmounts[0] + jarCarriedIn - jarSpent - jarCarriedOut;
-            if (request.Amount > jarAvailable)
-                return BadRequest(new { message = "Amount exceeds the selected jar's remaining budget.", jarAvailable = Math.Max(0m, jarAvailable) });
 
-            var income = await _context.Transactions
-                .Where(t => t.UserId == userId && t.Type == "Income" &&
-                            t.TransactionDate >= start && t.TransactionDate < end)
-                .SumAsync(t => (decimal?)t.Amount) ?? 0m;
-            var expense = await _context.Transactions
-                .Where(t => t.UserId == userId && t.Type == "Expense" &&
-                            t.TransactionDate >= start && t.TransactionDate < end)
-                .SumAsync(t => (decimal?)t.Amount) ?? 0m;
-            var carriedIn = await _context.BudgetCarriedOvers
-                .Where(c => c.UserId == userId && c.ToMonth == request.Month && c.ToYear == request.Year)
-                .SumAsync(c => (decimal?)c.CarriedAmount) ?? 0m;
-            var carriedOut = await _context.BudgetCarriedOvers
-                .Where(c => c.UserId == userId && c.FromMonth == request.Month && c.FromYear == request.Year)
-                .SumAsync(c => (decimal?)c.CarriedAmount) ?? 0m;
-            var available = income - expense + carriedIn - carriedOut;
-            if (request.Amount > available)
-                return BadRequest(new { message = "Amount exceeds available remaining money.", availableRemaining = Math.Max(0m, available) });
+            // This approach reduces the source's base budget. It cannot transfer
+            // more than that base budget, even if the jar also has carried-in funds.
+            var sourceAvailable = sourceBudget.BudgetAmount + sourceCarriedIn - spent - sourceCarriedOut;
+            if (request.Amount > sourceAvailable || request.Amount > sourceBudget.BudgetAmount)
+                return BadRequest(new {
+                    message = "Amount exceeds source jar's transferable budget.",
+                    available = Math.Max(0m, Math.Min(sourceAvailable, sourceBudget.BudgetAmount))
+                });
 
-            var transaction = new Transaction
-            {
+            var income = await _context.Transactions.Where(t =>
+                t.UserId == userId && t.Type == "Income" &&
+                t.TransactionDate >= from && t.TransactionDate < next)
+                .SumAsync(t => (decimal?)t.Amount) ?? 0m;
+            var expense = await _context.Transactions.Where(t =>
+                t.UserId == userId && t.Type == "Expense" &&
+                t.TransactionDate >= from && t.TransactionDate < next)
+                .SumAsync(t => (decimal?)t.Amount) ?? 0m;
+            var carriedIn = await _context.BudgetCarriedOvers.Where(c =>
+                c.UserId == userId && c.ToMonth == request.Month && c.ToYear == request.Year)
+                .SumAsync(c => (decimal?)c.CarriedAmount) ?? 0m;
+            var carriedOut = await _context.BudgetCarriedOvers.Where(c =>
+                c.UserId == userId && c.FromMonth == request.Month && c.FromYear == request.Year)
+                .SumAsync(c => (decimal?)c.CarriedAmount) ?? 0m;
+            var globalAvailable = income - expense + carriedIn - carriedOut;
+            if (request.Amount > globalAvailable)
+                return BadRequest(new {
+                    message = "Amount exceeds available remaining money.",
+                    availableRemaining = Math.Max(0m, globalAvailable)
+                });
+
+            sourceBudget.BudgetAmount -= request.Amount;
+            var transfer = new BudgetCarriedOver {
                 UserId = userId,
-                CategoryId = category.Id,
-                JarId = jarId,
-                Amount = request.Amount,
-                Type = "Expense",
-                TransactionDate = today,
-                Note = $"[REMAINING:{action}] {targetName}",
-                GoalId = action == "GOAL" ? request.GoalId : null,
-                DebtId = action == "DEBT" ? request.DebtId : null,
-                InvestmentId = action == "INVESTMENT" ? request.InvestmentId : null
+                JarId = request.TargetJarId,
+                FromMonth = request.Month,
+                FromYear = request.Year,
+                ToMonth = next.Month,
+                ToYear = next.Year,
+                CarriedAmount = request.Amount,
+                CreatedAt = DateTime.Now
             };
-            _context.Transactions.Add(transaction);
-            _context.Notifications.Add(new Notification
-            {
+            _context.BudgetCarriedOvers.Add(transfer);
+            await _context.SaveChangesAsync();
+
+            // Marker links the notification to the transfer without new DB columns.
+            _context.Notifications.Add(new Notification {
                 UserId = userId,
-                Title = "Remaining money allocated",
-                Message = $"{request.Amount:N0} VND allocated to {action}: {targetName}.",
-                Type = "REMAINING_ALLOCATION",
+                Title = "Jar transfer",
+                Message = $"{request.Amount:N0} VND: {sourceJar.JarName} {request.Month}/{request.Year} -> {targetJar.JarName} {next.Month}/{next.Year} [JAR_TRANSFER:{transfer.Id}:{request.SourceJarId}:{request.TargetJarId}]",
+                Type = "JAR_TRANSFER",
                 IsRead = false,
                 CreatedAt = DateTime.Now
             });
             await _context.SaveChangesAsync();
             await dbTransaction.CommitAsync();
-            return Ok(new
-            {
-                message = "Allocation successful.",
-                actionType = action,
-                transactionId = transaction.Id,
+            return Ok(new {
+                message = "Jar transfer successful.",
+                transferId = transfer.Id,
+                sourceJarId = request.SourceJarId,
+                targetJarId = request.TargetJarId,
                 amount = request.Amount,
-                jarId,
-                availableRemainingAfter = available - request.Amount,
-                jarRemainingAfter = jarAvailable - request.Amount
+                fromMonth = request.Month,
+                fromYear = request.Year,
+                toMonth = next.Month,
+                toYear = next.Year,
+                sourceRemainingAfter = sourceAvailable - request.Amount,
+                availableRemainingAfter = globalAvailable - request.Amount
             });
         }
 

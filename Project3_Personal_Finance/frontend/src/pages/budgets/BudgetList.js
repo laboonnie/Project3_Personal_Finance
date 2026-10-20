@@ -1,258 +1,160 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import api from '../../api/api';
+import React, { useCallback, useEffect, useState } from 'react';
 import { budgetApi } from '../../api/budgetApi';
 import { transactionApi } from '../../api/transactionApi';
-import RemainingMoneyModal from './RemainingMoneyModal';
 import { remainingActionApi } from '../../api/remainingActionApi';
-import BudgetForm from './BudgetForm';
+import RemainingMoneyModal from './RemainingMoneyModal';
 import './Budgets.css';
 
+const formatMoney = (n) => new Intl.NumberFormat('vi-VN').format(Number(n) || 0) + 'đ';
+const toNumber = (v) => Number(v);
 
-const BudgetList = () => {
-    const [budgets, setBudgets] = useState([]);
-    const [goals, setGoals] = useState([]);
-    const [loading, setLoading] = useState(true);
+export default function BudgetList() {
     const [month, setMonth] = useState(new Date().getMonth() + 1);
     const [year, setYear] = useState(new Date().getFullYear());
     const [availableYears, setAvailableYears] = useState([]);
-    const [loadingYears, setLoadingYears] = useState(true);
-    const [showForm, setShowForm] = useState(false);
-    const [selectedJar, setSelectedJar] = useState(null);
-    const [summary, setSummary] = useState({ totalBudget: 0, totalSpent: 0, totalRemaining: 0 });
+    const [budgets, setBudgets] = useState([]);
     const [totalIncome, setTotalIncome] = useState(0);
-    const [remainingSummary, setRemainingSummary] = useState({
-        totalIncome: 0,
-        totalExpense: 0,
-        monthlyRemaining: 0,
-        carriedIn: 0,
-        totalAvailableBeforeProcessing: 0,
-        processedAmount: 0,
-        availableRemaining: 0,
-        hasRemaining: false
-    });
-    const distributableAmount =
-        Number(totalIncome || 0) +
-        Number(remainingSummary.carriedIn || 0);
-    const [showRemainingModal, setShowRemainingModal] =
-        useState(false);
-
-    const [remainingHistory, setRemainingHistory] =
-        useState([]);
-    const [showDistribute, setShowDistribute] = useState(false);
-    const [refresh, setRefresh] = useState(false);
+    const [remainingSummary, setRemainingSummary] = useState({});
+    const [remainingHistory, setRemainingHistory] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [refresh, setRefresh] = useState(0);
+    const [showManual, setShowManual] = useState(false);
+    const [amounts, setAmounts] = useState({});
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState('');
+    const [showRemainingModal, setShowRemainingModal] = useState(false);
     const [showJarHistory, setShowJarHistory] = useState(false);
+    const [selectedJarName, setSelectedJarName] = useState('');
     const [selectedJarTransactions, setSelectedJarTransactions] = useState([]);
-    const [selectedJarName, setSelectedJarName] = useState("");
 
-    const loadAvailableYears = useCallback(async () => {
-        try {
-            setLoadingYears(true);
-            const response = await budgetApi.getAvailableYears();
-            setAvailableYears(response.data.sort((a, b) => b - a));
-        } catch (error) {
-            console.error('Error loading years:', error);
-            const currentYear = new Date().getFullYear();
-            setAvailableYears([currentYear + 1, currentYear, currentYear - 1]);
-        } finally {
-            setLoadingYears(false);
-        }
-    }, []);
+    const refreshData = () => setRefresh(v => v + 1);
 
     const loadData = useCallback(async () => {
         setLoading(true);
-
         try {
-            const [
-                budgetsRes,
-                incomeRes,
-                remainingRes,
-                remainingHistoryRes
-            ] = await Promise.all([
-                budgetApi.getMonthlyBudgets(
-                    month,
-                    year
-                ),
-
-                transactionApi.getTotalIncome(
-                    month,
-                    year
-                ),
-
-                remainingActionApi.getSummary(
-                    month,
-                    year
-                ),
-
-                remainingActionApi.getActions(
-                    month,
-                    year
-                )
+            const [b, i, r, h] = await Promise.all([
+                budgetApi.getMonthlyBudgets(month, year),
+                transactionApi.getTotalIncome(month, year),
+                remainingActionApi.getSummary(month, year),
+                remainingActionApi.getActions(month, year)
             ]);
-
-            const budgetData =
-                budgetsRes.data || [];
-
-            setBudgets(budgetData);
-
-            setTotalIncome(
-                incomeRes.data.total || 0
-            );
-
-            setRemainingSummary(
-                remainingRes.data || {
-                    totalIncome: 0,
-                    totalExpense: 0,
-                    monthlyRemaining: 0,
-                    processedAmount: 0,
-                    availableRemaining: 0,
-                    hasRemaining: false
-                }
-            );
-
-            setRemainingHistory(
-                remainingHistoryRes.data || []
-            );
-
-            const totalBudget =
-                budgetData.reduce(
-                    (sum, b) =>
-                        sum +
-                        (b.budgetAmount || 0),
-                    0
-                );
-
-            const totalSpent =
-                budgetData.reduce(
-                    (sum, b) =>
-                        sum +
-                        (b.spent || 0),
-                    0
-                );
-
-            setSummary({
-                totalBudget,
-                totalSpent,
-                totalRemaining:
-                    totalBudget - totalSpent
-            });
-
-        } catch (error) {
-            console.error(
-                'Error loading budget data:',
-                error
-            );
+            setBudgets(b.data || []);
+            setTotalIncome(Number(i.data?.total || 0));
+            setRemainingSummary(r.data || {});
+            setRemainingHistory(h.data || []);
+        } catch (e) {
+            console.error(e);
+            alert(e.response?.data?.message || 'Unable to load budget data.');
         } finally {
             setLoading(false);
         }
-    }, [month, year]);    const refreshData = useCallback(() => {
-        setRefresh(prev => !prev);
+    }, [month, year]);
+
+    useEffect(() => { loadData(); }, [loadData, refresh]);
+    useEffect(() => {
+        budgetApi.getAvailableYears().then(r => setAvailableYears(r.data || []))
+            .catch(() => setAvailableYears([new Date().getFullYear()]));
     }, []);
 
-    useEffect(() => {
-        loadAvailableYears();
-    }, [loadAvailableYears]);
-
-    useEffect(() => {
-        if (year) {
-            loadData();
-        }
-    }, [loadData, year, refresh]);
-    useEffect(() => {
-        loadGoals();
-    }, []);
-    const distributeBudget = async () => {
-        if (distributableAmount <= 0) {
-            alert('No income this month!');
+    const openAuto = () => {
+        if (budgets.length === 0) {
+            alert('No jars found.');
             return;
         }
 
-        let successCount = 0;
-        for (const jar of budgets) {
-            const percentage = jar.defaultPercentage || 0;
-            if (percentage > 0) {
-                const amount = distributableAmount * (percentage / 100);
-                if (amount > 0) {
-                    try {
-                        await budgetApi.create({
-                            jarId: jar.jarId,
-                            budgetAmount: Math.round(amount),
-                            month,
-                            year
-                        });
-                        successCount++;
-                    } catch (error) {
-                        console.error('Error saving budget:', error);
-                    }
+        const autoAmounts = {};
+        let allocated = 0;
+
+        budgets.forEach((jar, index) => {
+            const percentage = Number(jar.defaultPercentage || 0);
+
+            // Tính ngân sách theo tỷ lệ mặc định
+            let amount = Math.round(
+                totalIncome * percentage / 100
+            );
+
+            // Lọ cuối nhận phần chênh lệch do làm tròn,
+            // nếu tổng tỷ lệ của 6 lọ bằng 100%.
+            if (index === budgets.length - 1) {
+                const totalPercentage = budgets.reduce(
+                    (sum, j) => sum + Number(j.defaultPercentage || 0),
+                    0
+                );
+
+                if (Math.abs(totalPercentage - 100) < 0.0001) {
+                    amount = totalIncome - allocated;
                 }
             }
+
+            autoAmounts[jar.jarId] = String(amount);
+            allocated += amount;
+        });
+
+        setAmounts(autoAmounts);
+        setError('');
+        setShowManual(true);
+    };
+
+
+    const openManual = () => {
+        setAmounts(Object.fromEntries(budgets.map(j => [j.jarId, String(j.budgetAmount ?? 0)])));
+        setError('');
+        setShowManual(true);
+    };
+
+    const totalAllocated = budgets.reduce((s, j) => s + (Number(amounts[j.jarId]) || 0), 0);
+
+    const invalidAmounts = budgets.some(jar => {
+        const value = amounts[jar.jarId];
+
+        // Để trống được hiểu là 0
+        if (value === '' || value === null || value === undefined) {
+            return false;
         }
 
-        alert(`✅ Successfully distributed budget for ${successCount}/6 jars!`);
-        refreshData();
-        setShowDistribute(false);
-    };
-    const handleMonthChange = (e) => setMonth(parseInt(e.target.value));
-    const handleYearChange = (e) => setYear(parseInt(e.target.value));
-    const handleEditBudget = (jar) => {
-        setSelectedJar(jar);
-        setShowForm(true);
-    };
-    const loadGoals = async () => {
+        const number = Number(value);
+
+        return !Number.isFinite(number) || number < 0;
+    });
+
+    const saveManual = async (e) => {
+        e.preventDefault();
+        setError('');
+        if (invalidAmounts || totalAllocated > totalIncome) {
+            setError('All amounts must be non-negative and the total cannot exceed monthly income.');
+            return;
+        }
+        setSaving(true);
         try {
-            const response = await api.get('/Goals');
 
-            const data = Array.isArray(response.data)
-                ? response.data
-                : [];
+            await budgetApi.manualDistribute({
+                month,
+                year,
+                allocations: budgets.map(jar => ({
+                    jarId: jar.jarId,
+                    amount: Number(amounts[jar.jarId] || 0)
+                }))
+            });
 
-            setGoals(
-                data.filter(goal =>
-                    String(goal.status || '').toLowerCase() !== 'completed'
-                )
-            );
-        } catch (error) {
-            console.error('Error loading goals:', error);
-            setGoals([]);
+            setShowManual(false);
+            refreshData();
+        } catch (e) {
+            setError(e.response?.data?.message || 'Unable to save manual distribution.');
+        } finally {
+            setSaving(false);
         }
-    };
-    // const handleDeleteBudget = async (jarId) => {
-    //     if (window.confirm('Are you sure you want to delete this budget?')) {
-    //         try {
-    //             const budget = budgets.find(b => b.jarId === jarId);
-    //             if (budget?.id) {
-    //                 await budgetApi.delete(budget.id);
-    //                 loadData();
-    //             }
-    //         } catch (error) {
-    //             console.error('Error deleting budget:', error);
-    //         }
-    //     }
-    // };
-
-    const formatMoney = (amount) => {
-        return new Intl.NumberFormat('vi-VN').format(amount) + 'đ';
     };
 
     const handleSeeDetails = async (jar) => {
-
         try {
-
-            const response = await transactionApi.getMonthlyTransactions(month, year);
-
-            const filtered = response.data.filter(t => t.jarId === jar.jarId);
-
-            setSelectedJarTransactions(filtered);
-
+            const res = await transactionApi.getMonthlyTransactions(month, year);
+            const rows = Array.isArray(res.data) ? res.data : (res.data?.items || []);
+            setSelectedJarTransactions(rows.filter(t => Number(t.jarId) === Number(jar.jarId)));
             setSelectedJarName(jar.jarName);
-
             setShowJarHistory(true);
-
-        } catch (error) {
-
-            console.error("Error loading jar history:", error);
-
+        } catch (e) {
+            alert(e.response?.data?.message || 'Unable to load transactions.');
         }
-
     };
 
     if (loading) return <div className="loading">Loading data...</div>;
@@ -260,411 +162,157 @@ const BudgetList = () => {
     return (
         <div className="budget-container">
             <h2>6 Jars Budget Management</h2>
-
             <div className="filter-section">
                 <label>Month:</label>
-                <select value={month} onChange={handleMonthChange}>
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => (
-                        <option key={m} value={m}>Month {m}</option>
-                    ))}
+                <select value={month} onChange={e => setMonth(Number(e.target.value))}>
+                    {Array.from({ length: 12 }, (_, i) => i + 1).map(m =>
+                        <option key={m} value={m}>Month {m}</option>)}
                 </select>
-
                 <label>Year:</label>
-                <select value={year} onChange={handleYearChange} disabled={loadingYears}>
-                    {loadingYears ? (
-                        <option>Loading...</option>
-                    ) : (
-                        availableYears.map(y => (
-                            <option key={y} value={y}>{y}</option>
-                        ))
-                    )}
+                <select value={year} onChange={e => setYear(Number(e.target.value))}>
+                    {[...new Set([...availableYears, year])].sort((a, b) => b - a).map(y =>
+                        <option key={y} value={y}>{y}</option>)}
                 </select>
             </div>
 
             <div className="income-summary">
                 <h3>TOTAL INCOME - Month {month}/{year}</h3>
-
-                <p className="amount">
-                    {formatMoney(totalIncome)}
-                </p>
-
-                {remainingSummary.carriedIn > 0 && (
-                    <p>
-                        Carried from previous month:
-                        <strong>
-                            {formatMoney(remainingSummary.carriedIn)}
-                        </strong>
-                    </p>
-                )}
-
-                <p>
-                    Total available for budgeting:
-                    <strong>
-                        {formatMoney(distributableAmount)}
-                    </strong>
-                </p>
-
-                {distributableAmount > 0 && (
+                <p className="amount">{formatMoney(totalIncome)}</p>
+                <p>Carried from previous month: <strong>{formatMoney(remainingSummary.carriedIn)}</strong></p>
+                <p>Income available for manual budgeting: <strong>{formatMoney(totalIncome)}</strong></p>
+                <div className="distribution-actions">
                     <button
-                        onClick={() => setShowDistribute(true)}
+                        type="button"
                         className="btn-distribute"
+                        onClick={openAuto}
                     >
                         AUTO DISTRIBUTE TO 6 JARS
                     </button>
-                )}
-            </div>
 
-            {showDistribute && (
-                <div className="modal-overlay" onClick={() => setShowDistribute(false)}>
-                    <div className="modal-content" onClick={e => e.stopPropagation()}>
-                        <h3>💰 Confirm Budget Distribution</h3>
-                        <p>
-                            New income: <strong>{formatMoney(totalIncome)}</strong>
-                        </p>
-
-                        <p>
-                            Carried from previous month:
-                            <strong>
-                                {formatMoney(remainingSummary.carriedIn)}
-                            </strong>
-                        </p>
-
-                        <p>
-                            Total to distribute:
-                            <strong>{formatMoney(distributableAmount)}</strong>
-                        </p>
-
-                        <div className="distribution-list">
-                            {budgets.map(jar => {
-                                const amount = distributableAmount * (jar.defaultPercentage / 100);
-                                return (
-                                    <div key={jar.jarId} className="distribution-row">
-                                        <span>{jar.jarName} ({jar.defaultPercentage}%)</span>
-                                        <strong>{formatMoney(Math.round(amount))}</strong>
-                                    </div>
-                                );
-                            })}
-                        </div>
-
-                        <div className="form-actions">
-                            <button onClick={() => setShowDistribute(false)} className="btn-cancel">
-                                Cancel
-                            </button>
-                            <button onClick={distributeBudget} className="btn-save">
-                                Confirm
-                            </button>
-                        </div>
-                    </div>
+                    <button
+                        type="button"
+                        className="btn-distribute"
+                        onClick={openManual}
+                    >
+                        MANUAL DISTRIBUTE TO 6 JARS
+                    </button>
                 </div>
-            )}
+
+            </div>
 
             <div className="remaining-section">
-
                 <div className="remaining-section-header">
-                    <div>
-                        <h3>Monthly balance</h3>
-
-                        <p>
-                            Actual income and expenses
-                            for {month}/{year}
-                        </p>
-                    </div>
-
-                    {remainingSummary.availableRemaining > 0 && (
-                        <button
-                            type="button"
-                            className="btn-manage-remaining"
-                            onClick={() =>
-                                setShowRemainingModal(true)
-                            }
-                        >
+                    <div><h3>Monthly balance</h3><p>Actual income and expenses for {month}/{year}</p></div>
+                    {Number(remainingSummary.availableRemaining || 0) > 0 &&
+                        <button type="button" className="btn-manage-remaining" onClick={() => setShowRemainingModal(true)}>
                             Manage remaining
-                        </button>
-                    )}
+                        </button>}
                 </div>
-
                 <div className="remaining-overview">
-                    {remainingSummary.carriedIn > 0 && (
-                        <div className="remaining-stat carried-in">
-                            <span>Carried from previous month</span>
-                            <strong>
-                                {formatMoney(remainingSummary.carriedIn)}
-                            </strong>
-                        </div>
-                    )}
-
-                    <div className="remaining-stat">
-                        <span>Income</span>
-
-                        <strong>
-                            {formatMoney(
-                                remainingSummary.totalIncome
-                            )}
-                        </strong>
-                    </div>
-
-                    <div className="remaining-stat">
-                        <span>Expenses</span>
-
-                        <strong>
-                            {formatMoney(
-                                remainingSummary.totalExpense
-                            )}
-                        </strong>
-                    </div>
-
-                    <div className="remaining-stat">
-                        <span>Monthly balance</span>
-
-                        <strong
-                            className={
-                                remainingSummary
-                                    .monthlyRemaining >= 0
-                                    ? 'positive'
-                                    : 'negative'
-                            }
-                        >
-                            {formatMoney(
-                                remainingSummary
-                                    .monthlyRemaining
-                            )}
-                        </strong>
-                    </div>
-
-                    <div className="remaining-stat">
-                        <span>Already managed</span>
-
-                        <strong>
-                            {formatMoney(
-                                remainingSummary
-                                    .processedAmount
-                            )}
-                        </strong>
-                    </div>
-
-                    <div className="remaining-stat highlight">
-                        <span>Available to manage</span>
-
-                        <strong>
-                            {formatMoney(
-                                remainingSummary
-                                    .availableRemaining
-                            )}
-                        </strong>
-                    </div>
-
+                    {[
+                        ['Income', remainingSummary.totalIncome],
+                        ['Expenses', remainingSummary.totalExpense],
+                        ['Carried from previous month', remainingSummary.carriedIn],
+                        ['Monthly balance', remainingSummary.monthlyRemaining],
+                        ['Already managed', remainingSummary.processedAmount],
+                            ['Available to manage', remainingSummary.availableRemaining]
+                        ].map(([label, value]) =>
+                            <div className="remaining-stat" key={label}>
+                                <span>{label}</span><strong>{formatMoney(value)}</strong>
+                            </div>)}
                 </div>
-
-                {remainingHistory.length > 0 && (
+                {remainingHistory.length > 0 &&
                     <div className="remaining-history">
-
-                        <div className="remaining-history-title">
-                            Allocation history
-                        </div>
-
-                        {remainingHistory.map(item => (
-                            <div
-                                className="remaining-history-row"
-                                key={item.id}
-                            >
+                        <div className="remaining-history-title">Allocation history</div>
+                        {remainingHistory.map((item, index) =>
+                            <div className="remaining-history-row" key={item.id ?? index}>
                                 <div>
-                                    <strong>
-                                        {
-                                            item.actionType
-                                                .replaceAll(
-                                                    '_',
-                                                    ' '
-                                                )
-                                        }
-                                    </strong>
-
-                                    <span>
-                            {new Date(
-                                item.createdAt
-                            ).toLocaleString(
-                                'vi-VN'
-                            )}
-                        </span>
+                                    <strong>{(item.actionType || 'CARRY_OVER').replaceAll('_', ' ')}</strong>
+                                    {(item.sourceJarName || item.targetJarName) &&
+                                        <p>{item.sourceJarName || ''} → {item.targetJarName || ''}</p>}
+                                    <span>{item.createdAt ? new Date(item.createdAt).toLocaleString('vi-VN') : ''}</span>
                                 </div>
-
-                                <strong>
-                                    {formatMoney(
-                                        item.amount
-                                    )}
-                                </strong>
-                            </div>
-                        ))}
-
-                    </div>
-                )}
-
+                                <strong>{formatMoney(item.amount)}</strong>
+                            </div>)}
+                    </div>}
             </div>
+
             <div className="jars-grid">
-                {budgets.map((jar) => (
-                    <div key={jar.jarId} className={`jar-card ${jar.isOverBudget ? 'over-budget' : ''}`}>
-                        <div className="jar-header">
-                            <h3>{jar.jarName}</h3>
-                            <span className="jar-code">{jar.jarCode}</span>
-                        </div>
-
+                {budgets.map(jar =>
+                    <div className={`jar-card ${jar.isOverBudget ? 'over-budget' : ''}`} key={jar.jarId}>
+                        <div className="jar-header"><h3>{jar.jarName}</h3><span className="jar-code">{jar.jarCode}</span></div>
                         <div className="jar-details">
-                            <div className="amount-row">
-                                <span>Budget:</span>
-                                <strong>{formatMoney(jar.budgetAmount)}</strong>
-                            </div>
-                            <div className="amount-row">
-                                <span>Spent:</span>
-                                <strong>{formatMoney(jar.spent)}</strong>
-                            </div>
-                            <div className="amount-row">
-                                <span>Remaining:</span>
-                                <strong className={jar.remaining < 0 ? 'negative' : ''}>
-                                    {formatMoney(jar.remaining)}
-                                </strong>
-                            </div>
+                            <div className="amount-row"><span>Budget:</span><strong>{formatMoney(jar.budgetAmount)}</strong></div>
+                            <div className="amount-row"><span>Carried in:</span><strong>{formatMoney(jar.carriedIn)}</strong></div>
+                            <div className="amount-row"><span>Spent:</span><strong>{formatMoney(jar.spent)}</strong></div>
+                            <div className="amount-row"><span>Remaining:</span><strong>{formatMoney(jar.remaining)}</strong></div>
                         </div>
-
-                        <div className="progress-container">
-                            <div className="progress-bar">
-                                <div
-                                    className={`progress-fill ${jar.progress > 100 ? 'danger' : ''}`}
-                                    style={{ width: `${Math.min(jar.progress, 100)}%` }}
-                                />
-                            </div>
-                            <span className="progress-text">{jar.progress}%</span>
-                        </div>
-
-                        <div className="jar-status">
-                            <span className={`status-badge ${jar.isOverBudget ? 'danger' : 'success'}`}>
-                                {jar.status}
-                            </span>
-                        </div>
-
-                        <div className="jar-actions">
-                            {jar.budgetAmount > 0 ? (
-                                <>
-                                    <button className="btn-edit" onClick={() => handleSeeDetails(jar)}>
-                                        See details...
-                                    </button>
-                                    {/* <button className="btn-delete" onClick={() => handleDeleteBudget(jar.jarId)}>
-                                        Delete
-                                    </button> */}
-                                </>
-                            ) : (
-                                <button className="btn-add" onClick={() => handleEditBudget(jar)}>
-                                    + Add Budget
-                                </button>
-                            )}
-                        </div>
-
-                        {jar.budgetAmount === 0 && (
-                            <div className="suggestion">
-                                Suggestion: {jar.defaultPercentage}% of income
-                            </div>
-                        )}
-                    </div>
-                ))}
+                        <div className="progress-container"><div className="progress-bar">
+                            <div className={`progress-fill ${jar.progress > 100 ? 'danger' : ''}`}
+                                 style={{ width: `${Math.min(100, Math.max(0, Number(jar.progress) || 0))}%` }} />
+                        </div><span className="progress-text">{jar.progress}%</span></div>
+                        <div className="jar-status"><span className={`status-badge ${jar.isOverBudget ? 'danger' : 'success'}`}>
+              {jar.status}</span></div>
+                        <div className="jar-actions"><button className="btn-edit" onClick={() => handleSeeDetails(jar)}>
+                            See details...</button></div>
+                    </div>)}
             </div>
 
-            {showForm && (
-                <BudgetForm
-                    jar={selectedJar}
-                    month={month}
-                    year={year}
-                    onClose={() => setShowForm(false)}
-                    onSuccess={() => {
-                        setShowForm(false);
-                        loadData();
-                    }}
-                />
-            )}
-            {
-                showJarHistory && (
+            {showManual && <div className="modal-overlay" onClick={() => !saving && setShowManual(false)}>
+                <div className="modal-content" onClick={e => e.stopPropagation()}>
+                    <h3>Manual Budget Distribution</h3>
+                    <p>Month {month}/{year} · Income: <strong>{formatMoney(totalIncome)}</strong></p>
+                    <p>Carried-in money is already assigned to its destination jar.</p>
+                    <form onSubmit={saveManual}>
+                        {budgets.map(jar => <div className="form-group" key={jar.jarId}>
+                            <label>{jar.jarName} ({jar.jarCode})</label>
 
-                    <div className="modal-overlay" onClick={() => setShowJarHistory(false)}>
+                            <input
+                                type="number"
+                                min="0"
+                                step="1"
+                                placeholder="0"
+                                value={amounts[jar.jarId] ?? ''}
+                                onChange={e =>
+                                    setAmounts(prev => ({
+                                        ...prev,
+                                        [jar.jarId]: e.target.value
+                                    }))
+                                }
+                            />
 
-                        <div
-                            className="modal-content"
-                            onClick={(e) => e.stopPropagation()}
-                        >
-
-                            <h3>📜 Transaction History - {selectedJarName}</h3>
-
-                            {
-                                selectedJarTransactions.length === 0 ? (
-
-                                    <p>No transactions found</p>
-
-                                ) : (
-
-                                    selectedJarTransactions.map(t => (
-
-                                        <div
-                                            key={t.id}
-                                            className="history-row"
-                                        >
-
-                                            <span>
-                                                {new Date(t.transactionDate)
-                                                    .toLocaleDateString("vi-VN")}
-                                            </span>
-
-                                            <span>
-                                                {t.categoryName}
-                                            </span>
-
-                                            <strong>
-
-                                                {t.type === "Income" ? "+" : "-"}
-
-                                                {new Intl.NumberFormat("vi-VN")
-                                                    .format(t.amount)}đ
-
-                                            </strong>
-
-                                        </div>
-
-                                    ))
-
-                                )
-                            }
-
-                            <div className="form-actions">
-
-                                <button
-                                    className="btn-cancel"
-                                    onClick={() => setShowJarHistory(false)}
-                                >
-                                    Close
-                                </button>
-
-                            </div>
-
+                            <small>Spent: {formatMoney(jar.spent)} · Carried in: {formatMoney(jar.carriedIn)}</small>
+                        </div>)}
+                        <p><strong>Total allocated: {formatMoney(totalAllocated)}</strong></p>
+                        <p><strong>Unallocated: {formatMoney(totalIncome - totalAllocated)}</strong></p>
+                        {error && <div className="remaining-error">{error}</div>}
+                        <div className="form-actions">
+                            <button type="button" className="btn-cancel" disabled={saving} onClick={() => setShowManual(false)}>Cancel</button>
+                            <button type="submit" className="btn-save" disabled={saving || invalidAmounts || totalAllocated > totalIncome}>
+                                {saving ? 'Saving...' : 'Save distribution'}</button>
                         </div>
+                    </form>
+                </div>
+            </div>}
 
-                    </div>
+            {showJarHistory && <div className="modal-overlay" onClick={() => setShowJarHistory(false)}>
+                <div className="modal-content" onClick={e => e.stopPropagation()}>
+                    <h3>Transaction History - {selectedJarName}</h3>
+                    {selectedJarTransactions.length === 0 ? <p>No transactions found</p> :
+                        selectedJarTransactions.map((t, index) =>
+                            <div className="history-row" key={t.id ?? index}>
+                                <span>{new Date(t.transactionDate).toLocaleDateString('vi-VN')}</span>
+                                <span>{t.categoryName}</span>
+                                <strong>{t.type === 'Income' ? '+' : '-'}{formatMoney(t.amount)}</strong>
+                            </div>)}
+                    <div className="form-actions"><button className="btn-cancel" onClick={() => setShowJarHistory(false)}>Close</button></div>
+                </div>
+            </div>}
 
-                )
-            }
-            {showRemainingModal && (
-                <RemainingMoneyModal
-                    month={month}
-                    year={year}
-                    availableAmount={remainingSummary.availableRemaining}
-                    jars={budgets}
-                    goals={goals}
-                    debts={[]}
-                    investments={[]}
-                    onClose={() => setShowRemainingModal(false)}
-                    onSuccess={() => {
-                        setShowRemainingModal(false);
-                        refreshData();
-                        loadGoals();
-                    }}
-                />
-            )}
+            {showRemainingModal && <RemainingMoneyModal
+                month={month} year={year} availableAmount={remainingSummary.availableRemaining || 0}
+                jars={budgets} onClose={() => setShowRemainingModal(false)}
+                onSuccess={() => { setShowRemainingModal(false); refreshData(); }} />}
         </div>
     );
-};
-
-export default BudgetList;
+}

@@ -27,5 +27,8 @@ export const budgetApi = {
 
     // Lấy danh sách năm (KHÔNG userId)
     getAvailableYears: () =>
-        api.get(`/budgets/available-years`)
+        api.get(`/budgets/available-years`),
+
+    manualDistribute: (data) =>
+        api.post('/Budgets/manual-distribute', data)
 };
