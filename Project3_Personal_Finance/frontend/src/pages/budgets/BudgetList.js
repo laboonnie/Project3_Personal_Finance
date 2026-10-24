@@ -18,6 +18,7 @@ export default function BudgetList() {
     const [loading, setLoading] = useState(true);
     const [refresh, setRefresh] = useState(0);
     const [showManual, setShowManual] = useState(false);
+    const [distributionMode, setDistributionMode] = useState('manual');
     const [amounts, setAmounts] = useState({});
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState('');
@@ -87,12 +88,22 @@ export default function BudgetList() {
         });
 
         setAmounts(autoAmounts);
+        setDistributionMode('auto');
         setError('');
         setShowManual(true);
     };
 
     const openManual = () => {
-        setAmounts(Object.fromEntries(budgets.map(j => [j.jarId, String(j.budgetAmount ?? 0)])));
+        setAmounts(
+            Object.fromEntries(
+                budgets.map(jar => [
+                    jar.jarId,
+                    String(jar.budgetAmount ?? 0)
+                ])
+            )
+        );
+
+        setDistributionMode('manual');
         setError('');
         setShowManual(true);
     };
@@ -289,7 +300,11 @@ export default function BudgetList() {
 
                 {showManual && <div className="modal-overlay" onClick={() => !saving && setShowManual(false)}>
                     <div className="modal-content" onClick={e => e.stopPropagation()}>
-                        <h3>Manual Budget Distribution</h3>
+                        <h3>
+                            {distributionMode === 'auto'
+                                ? 'Auto Budget Distribution'
+                                : 'Manual Budget Distribution'}
+                        </h3>
                         <p className="modal-subtitle">Month {month}/{year} · Income: <strong>{formatMoney(totalIncome)}</strong></p>
                         <form onSubmit={saveManual}>
                             {budgets.map(jar => <div className="form-group" key={jar.jarId}>
@@ -322,7 +337,11 @@ export default function BudgetList() {
                             <div className="form-actions">
                                 <button type="button" className="btn-cancel" disabled={saving} onClick={() => setShowManual(false)}>Cancel</button>
                                 <button type="submit" className="btn-save" disabled={saving || invalidAmounts || totalAllocated > totalIncome}>
-                                    {saving ? 'Saving...' : 'Save distribution'}
+                                    {saving
+                                        ? 'Saving...'
+                                        : distributionMode === 'auto'
+                                            ? 'Confirm Auto Distribution'
+                                            : 'Save Manual Distribution'}
                                 </button>
                             </div>
                         </form>
