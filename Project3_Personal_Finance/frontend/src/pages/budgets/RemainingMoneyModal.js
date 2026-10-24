@@ -14,8 +14,9 @@ const RemainingMoneyModal = ({ month, year, availableAmount, jars = [], onClose,
     const [amount, setAmount] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+
     const formatMoney = v => new Intl.NumberFormat('vi-VN').format(v || 0) + 'đ';
-    const next = new Date(year, month, 1); // month is 1-based: next month
+    const next = new Date(year, month, 1);
     const selectedSource = jars.find(j => Number(j.jarId) === Number(sourceJarId));
     const sourceAvailable = selectedSource
         ? Math.max(0, Math.min(Number(selectedSource.remaining || 0), Number(selectedSource.budgetAmount || 0)))
@@ -64,12 +65,21 @@ const RemainingMoneyModal = ({ month, year, availableAmount, jars = [], onClose,
 
     return (
         <div className="modal-overlay" onClick={onClose}>
-            <div className="modal-content remaining-modal" onClick={e => e.stopPropagation()}>
-                <div className="remaining-modal-header">
-                    <div><h3>Manage remaining money</h3><p>Month {month}/{year}</p></div>
-                    <button type="button" className="modal-close" onClick={onClose} aria-label="Close">×</button>
+            <div className="modal-content" onClick={e => e.stopPropagation()}>
+                <h3>Manage remaining money</h3>
+                <p className="modal-subtitle">Month {month}/{year}</p>
+
+                <div style={{
+                    padding: '12px 16px',
+                    background: '#eef2ff',
+                    borderRadius: '8px',
+                    marginBottom: '18px',
+                    fontSize: '13.5px',
+                    color: '#4f46e5'
+                }}>
+                    Available to manage: <strong>{formatMoney(availableAmount)}</strong>
                 </div>
-                <div className="available-box"><span>Available to manage</span><strong>{formatMoney(availableAmount)}</strong></div>
+
                 <form onSubmit={handleSubmit}>
                     <div className="form-group">
                         <label>Action</label>
@@ -79,6 +89,7 @@ const RemainingMoneyModal = ({ month, year, availableAmount, jars = [], onClose,
                             {ACTIONS.map(a => <option key={a.value} value={a.value}>{a.label}</option>)}
                         </select>
                     </div>
+
                     {actionType === 'JAR' && (
                         <div className="form-group">
                             <label>Source jar (this month)</label>
@@ -90,6 +101,7 @@ const RemainingMoneyModal = ({ month, year, availableAmount, jars = [], onClose,
                             </select>
                         </div>
                     )}
+
                     {(actionType === 'JAR' || actionType === 'CARRY_OVER') && (
                         <div className="form-group">
                             <label>{actionType === 'JAR' ? 'Destination jar (next month)' : 'Jar to carry over'}</label>
@@ -100,17 +112,36 @@ const RemainingMoneyModal = ({ month, year, availableAmount, jars = [], onClose,
                             </select>
                         </div>
                     )}
-                    <p>Destination month: {next.getMonth() + 1}/{next.getFullYear()}</p>
+
+                    <p style={{ fontSize: '12.5px', color: '#64748b', margin: '8px 0 16px' }}>
+                        Destination month: <strong>{next.getMonth() + 1}/{next.getFullYear()}</strong>
+                    </p>
+
                     <div className="form-group">
-                        <div className="amount-label-row"><label>Amount</label>
-                            <button type="button" className="use-all-btn" onClick={() => setAmount(String(maxAmount))}>Use all</button>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                            <label style={{ margin: 0 }}>Amount</label>
+                            <button 
+                                type="button" 
+                                style={{
+                                    border: 'none', background: 'transparent', color: '#4f46e5',
+                                    fontWeight: '700', fontSize: '12px', cursor: 'pointer'
+                                }}
+                                onClick={() => setAmount(String(maxAmount))}
+                            >
+                                Use all
+                            </button>
                         </div>
                         <input type="number" min="1" step="1" max={maxAmount} value={amount}
                                onChange={e => setAmount(e.target.value)} placeholder="Enter amount" required />
-                        {amount && Number(amount) > 0 && <small className="amount-preview">{formatMoney(Number(amount))}</small>}
+                        {amount && Number(amount) > 0 && 
+                            <small style={{ color: '#10b981', fontWeight: '600', marginTop: '4px', display: 'block' }}>
+                                {formatMoney(Number(amount))}
+                            </small>}
                     </div>
+
                     {actionType === 'KEEP' && <div className="remaining-error">This action is temporarily unavailable.</div>}
                     {error && <div className="remaining-error">{error}</div>}
+
                     <div className="form-actions">
                         <button type="button" className="btn-cancel" onClick={onClose} disabled={loading}>Cancel</button>
                         <button type="submit" className="btn-save" disabled={loading || actionType === 'KEEP'}>
