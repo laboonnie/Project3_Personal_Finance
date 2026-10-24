@@ -8,7 +8,7 @@ export const FEATURES = {
   "1": {
     title: "Debt Management",
     imageAlt: "Debt Management feature illustration",
-    imageUrl:debtImg,
+    imageUrl: debtImg,
     description: "Track and manage all your debts in one place. Monitor outstanding balances, interest rates, and due dates with real-time updates.",
     keyFeatures: [
       "Add multiple debts from different sources",
@@ -52,63 +52,44 @@ export function IntroduceFeaturePanel({ id, onClose }) {
   return (
     <div className="ifd-frame">
       <div className="ifd-top">
+        <h1 id="intro-feature-dialog-title" className="ifd-title">
+          {meta.title}
+        </h1>
         <button
           type="button"
           className="ifd-back"
           onClick={onClose}
           aria-label="Close"
         >
-          <i className="bi bi-x-lg" aria-hidden="true" />
-          Close
+          <i className="bi bi-x-lg" aria-hidden="true" /> Close
         </button>
-        <h1 id="intro-feature-dialog-title" className="ifd-title">
-          {meta.title}
-        </h1>
       </div>
 
       <div className="ifd-image-wrap">
-        {meta.imageUrl ? (
-          <img
-            className="ifd-image"
-            src={meta.imageUrl}
-            alt={meta.imageAlt}
-          />
-        ) : (
-          <div
-            className="ifd-image-placeholder"
-            role="img"
-            aria-label={meta.imageAlt}
-          />
-        )}
+        <img
+          className="ifd-image"
+          src={meta.imageUrl}
+          alt={meta.imageAlt}
+        />
       </div>
 
       <div className="ifd-body">
-        <p style={{ fontSize: "14px", lineHeight: "1.6", color: "var(--intro-muted)", marginBottom: "16px" }}>
+        <p style={{ fontSize: "15px", lineHeight: "1.6", color: "#64748b", marginBottom: "20px" }}>
           {meta.description}
         </p>
 
-        <h2 style={{ fontSize: "16px", fontWeight: 600, marginTop: "16px", marginBottom: "12px", color: "var(--intro-text)" }}>
-          Key Features
+        <h2 style={{ fontSize: "16px", fontWeight: 800, color: "#0f172a", marginBottom: "14px" }}>
+          Key Highlights
         </h2>
 
-        <ul style={{ listStyle: "none", padding: "0", margin: "0" }}>
+        <div style={{ display: "flex", flexDirection: "column" }}>
           {meta.keyFeatures.map((feature, idx) => (
-            <li
-              key={idx}
-              style={{
-                fontSize: "14px",
-                lineHeight: "1.6",
-                color: "var(--intro-text)",
-                marginBottom: "10px",
-                paddingLeft: "20px",
-                position: "relative"
-              }}
-            >
-              <span style={{ position: "absolute", left: "0", color: "var(--intro-purple)" }}>✓</span>
+            <div key={idx} className="ifd-feature-item">
+              <span className="ifd-feature-check">✓</span>
               {feature}
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       </div>
     </div>
   );

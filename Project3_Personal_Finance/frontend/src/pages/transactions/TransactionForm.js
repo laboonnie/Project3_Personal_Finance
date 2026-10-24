@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { transactionApi } from '../../api/transactionApi';
 import categoryApi from '../../api/categoryApi';
+import Modal from '../../components/modal/Modal'; // Tùy chỉnh đường dẫn tới component Modal của bạn
 import './Transactions.css';
 
 const TransactionForm = ({
-                             onSuccess,
-                             onCancel,
-                             transactionToEdit = null
-                         }) => {
+    onSuccess,
+    onCancel,
+    transactionToEdit = null
+}) => {
     const [formData, setFormData] = useState({
         categoryId: '',
         amount: '',
@@ -33,6 +34,7 @@ const TransactionForm = ({
             setLoadingCategories(false);
         }
     }, [formData.type, allCategories]);
+
     useEffect(() => {
         if (transactionToEdit) {
             setFormData({
@@ -116,115 +118,116 @@ const TransactionForm = ({
         }
     };
 
-
     return (
-        <div className="transaction-form-container">
-            <h3>
-                {transactionToEdit
-                    ? 'Edit Transaction'
-                    : 'Add New Transaction'}
-            </h3>
+        <Modal close={onCancel}>
+            <div className="transaction-form-container">
+                <h3>
+                    {transactionToEdit
+                        ? 'Edit Transaction'
+                        : 'Add New Transaction'}
+                </h3>
 
-            {error && <div className="alert alert-danger">{error}</div>}
+                {error && <div className="alert alert-danger">{error}</div>}
 
-            <form onSubmit={handleSubmit} className="transaction-form">
-                <div className="form-group">
-                    <label>Transaction Type</label>
-                    <div className="type-buttons">
-                        <button
-                            type="button"
-                            className={`type-btn ${formData.type === 'Income' ? 'active income' : ''}`}
-                            onClick={() => setFormData(prev => ({ ...prev, type: 'Income', categoryId: '' }))}
-                        >
-                             Income
-                        </button>
-                        <button
-                            type="button"
-                            className={`type-btn ${formData.type === 'Expense' ? 'active expense' : ''}`}
-                            onClick={() => setFormData(prev => ({ ...prev, type: 'Expense', categoryId: '' }))}
-                        >
-                             Expense
-                        </button>
+                <form onSubmit={handleSubmit} className="transaction-form">
+                    <div className="form-group full-width">
+                        <label>Transaction Type</label>
+                        <div className="type-buttons">
+                            <button
+                                type="button"
+                                className={`type-btn ${formData.type === 'Income' ? 'active income' : ''}`}
+                                onClick={() => setFormData(prev => ({ ...prev, type: 'Income', categoryId: '' }))}
+                            >
+                                Income
+                            </button>
+                            <button
+                                type="button"
+                                className={`type-btn ${formData.type === 'Expense' ? 'active expense' : ''}`}
+                                onClick={() => setFormData(prev => ({ ...prev, type: 'Expense', categoryId: '' }))}
+                            >
+                                Expense
+                            </button>
+                        </div>
                     </div>
-                </div>
 
-                <div className="form-group">
-                    <label>Category</label>
-                    {loadingCategories ? (
-                        <div>Loading categories...</div>
-                    ) : (
-                        <select
-                            name="categoryId"
-                            value={formData.categoryId}
+                    <div className="form-group">
+                        <label>Category</label>
+                        {loadingCategories ? (
+                            <div>Loading categories...</div>
+                        ) : (
+                            <select
+                                name="categoryId"
+                                value={formData.categoryId}
+                                onChange={handleChange}
+                                required
+                            >
+                                <option value="">-- Select category --</option>
+                                {categories.map(cat => (
+                                    <option key={cat.id} value={cat.id}>
+                                        {cat.name}
+                                    </option>
+                                ))}
+                            </select>
+                        )}
+                    </div>
+
+                    <div className="form-group">
+                        <label>Amount (VND)</label>
+                        <input
+                            type="number"
+                            name="amount"
+                            value={formData.amount}
+                            onChange={handleChange}
+                            placeholder="Enter amount"
+                            min="0"
+                            step="1000"
+                            required
+                        />
+                    </div>
+
+                    <div className="form-group">
+                        <label>Transaction Date</label>
+                        <input
+                            type="date"
+                            name="transactionDate"
+                            value={formData.transactionDate}
                             onChange={handleChange}
                             required
+                        />
+                    </div>
+
+                    <div className="form-group">
+                        <label>Note</label>
+                        <input
+                            type="text"
+                            name="note"
+                            value={formData.note}
+                            onChange={handleChange}
+                            placeholder="Optional note"
+                        />
+                    </div>
+
+                    <div className="form-actions">
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="btn-submit"
                         >
-                            <option value="">-- Select category --</option>
-                            {categories.map(cat => (
-                                <option key={cat.id} value={cat.id}>
-                                    {cat.name}
-                                </option>
-                            ))}
-                        </select>
-                    )}
-                </div>
-
-                <div className="form-group">
-                    <label>Amount (VND)</label>
-                    <input
-                        type="number"
-                        name="amount"
-                        value={formData.amount}
-                        onChange={handleChange}
-                        placeholder="Enter amount"
-                        min="0"
-                        step="1000"
-                        required
-                    />
-                </div>
-
-                <div className="form-group">
-                    <label>Transaction Date</label>
-                    <input
-                        type="date"
-                        name="transactionDate"
-                        value={formData.transactionDate}
-                        onChange={handleChange}
-                        required
-                    />
-                </div>
-
-                <div className="form-group">
-                    <label>Note</label>
-                    <input
-                        type="text"
-                        name="note"
-                        value={formData.note}
-                        onChange={handleChange}
-                        placeholder="Optional note"
-                    />
-                </div>
-
-                <div className="form-actions">
-                    <button
-                        type="submit"
-                        disabled={loading}
-                        className="btn-submit"
-                    >
-                        {loading
-                            ? 'Processing...'
-                            : transactionToEdit
-                                ? 'Update Transaction'
-                                : 'Save Transaction'}
-                    </button>
-                    {onCancel && (
-                        <button type="button" onClick={onCancel} className="btn-cancel">
-                            Cancel
+                            {loading
+                                ? 'Processing...'
+                                : transactionToEdit
+                                    ? 'Update Transaction'
+                                    : 'Save Transaction'}
                         </button>
-                    )}
-                </div>
-            </form>
-        </div>
+                        {onCancel && (
+                            <button type="button" onClick={onCancel} className="btn-cancel">
+                                Cancel
+                            </button>
+                        )}
+                    </div>
+                </form>
+            </div>
+        </Modal>
     );
 };
 

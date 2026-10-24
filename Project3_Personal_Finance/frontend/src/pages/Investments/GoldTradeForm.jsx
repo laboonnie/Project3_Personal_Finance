@@ -20,11 +20,11 @@ const GoldTradeForm = ({ quote, allowedJars, onSuccess, onCancel }) => {
     const handleSubmit = async event => {
         event.preventDefault();
         if (!jarId || !quantity || Number(quantity) <= 0) {
-            toast.error('Vui lòng chọn hũ nguồn vốn và nhập số lượng vàng hợp lệ.');
+            toast.error('Please select a source jar and enter a valid gold quantity.');
             return;
         }
         if (selectedJar && estimatedAmount > selectedJar.balance) {
-            toast.error('Số dư hũ nguồn vốn không đủ cho giao dịch này.');
+            toast.error('Insufficient balance in the source jar for this transaction.');
             return;
         }
 
@@ -38,11 +38,11 @@ const GoldTradeForm = ({ quote, allowedJars, onSuccess, onCancel }) => {
             });
             const details = response.data.transactionDetails;
             toast.success(
-                `Đã mua ${details.quantity} ${details.unit} ${details.assetName} với giá ${formatMoney(details.unitPrice)}/${details.unit}. Còn ${formatMoney(details.remainingBalance)} trong hũ ${details.jarName}.`
+                `Bought ${details.quantity} ${details.unit} ${details.assetName} at ${formatMoney(details.unitPrice)}/${details.unit}. Remaining ${formatMoney(details.remainingBalance)} in jar ${details.jarName}.`
             );
             onSuccess();
         } catch (error) {
-            toast.error(error.response?.data || 'Không thể hoàn tất giao dịch mua vàng.');
+            toast.error(error.response?.data || 'Could not complete the gold purchase transaction.');
         } finally {
             setLoading(false);
         }
@@ -50,15 +50,15 @@ const GoldTradeForm = ({ quote, allowedJars, onSuccess, onCancel }) => {
 
     return (
         <div className="investment-form-container gold-trade-form">
-            <h3>Mua vàng · {quote.assetName}</h3>
+            <h3>Buy Gold · {quote.assetName}</h3>
             <p className="text-muted">
-                Giá SJC theo Giavang.org — bán ra: <b>{formatMoney(quote.sellPrice)}/{quote.unit}</b>. Mua vào: {formatMoney(quote.buyPrice)}/{quote.unit}.
-                {' '}Cập nhật lúc {quote.priceTime}.
+                SJC price via Giavang.org — sell price: <b>{formatMoney(quote.sellPrice)}/{quote.unit}</b>. Buy price: {formatMoney(quote.buyPrice)}/{quote.unit}.
+                {' '}Updated at {quote.priceTime}.
             </p>
             <form onSubmit={handleSubmit}>
                 <div className="form-grid">
                     <div className="form-group">
-                        <label htmlFor="gold-quantity">Số lượng ({quote.unit})</label>
+                        <label htmlFor="gold-quantity">Quantity ({quote.unit})</label>
                         <input
                             id="gold-quantity"
                             type="number"
@@ -69,20 +69,20 @@ const GoldTradeForm = ({ quote, allowedJars, onSuccess, onCancel }) => {
                             onChange={event => setQuantity(event.target.value)}
                             required
                         />
-                        <small>Tạm tính theo giá bán ra SJC từ Giavang.org: {formatMoney(estimatedAmount)}. Máy chủ sẽ xác nhận lại giá trước khi ghi nhận.</small>
+                        <small>Estimated at SJC sell price via Giavang.org: {formatMoney(estimatedAmount)}. The server will reconfirm the price before recording.</small>
                     </div>
                     <div className="form-group">
-                        <label htmlFor="gold-source-jar">Hũ nguồn vốn</label>
+                        <label htmlFor="gold-source-jar">Source Jar</label>
                         <select
                             id="gold-source-jar"
                             value={jarId}
                             onChange={event => setJarId(Number(event.target.value))}
                             required
                         >
-                            <option value="">-- Chọn hũ --</option>
+                            <option value="">-- Select Jar --</option>
                             {allowedJars.map(jar => (
                                 <option key={jar.jarId} value={jar.jarId}>
-                                    {jar.jarName} (Dư {formatMoney(jar.balance)})
+                                    {jar.jarName} (Available {formatMoney(jar.balance)})
                                 </option>
                             ))}
                         </select>
@@ -90,9 +90,9 @@ const GoldTradeForm = ({ quote, allowedJars, onSuccess, onCancel }) => {
                 </div>
                 <div className="form-actions">
                     <button type="submit" className="btn-submit" disabled={loading || allowedJars.length === 0}>
-                        {loading ? 'Đang xác nhận...' : 'Xác nhận mua vàng'}
+                        {loading ? 'Confirming...' : 'Confirm Gold Purchase'}
                     </button>
-                    <button type="button" className="btn-cancel" onClick={onCancel} disabled={loading}>Hủy</button>
+                    <button type="button" className="btn-cancel" onClick={onCancel} disabled={loading}>Cancel</button>
                 </div>
             </form>
         </div>

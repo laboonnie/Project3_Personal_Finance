@@ -423,11 +423,10 @@ const TransactionList = () => {
                                         {/* History available for every transaction */}
                                         <button
                                             type="button"
-                                            className={`action-btn ${
-                                                historyTransactionId === transaction.id
+                                            className={`action-btn ${historyTransactionId === transaction.id
                                                     ? 'active'
                                                     : ''
-                                            }`}
+                                                }`}
                                             onClick={() =>
                                                 handleViewHistory(transaction.id)
                                             }
@@ -513,19 +512,19 @@ const TransactionList = () => {
                                                             history.newType && (
                                                                 <div className="history-change">
 
-                                                                <span className="history-label">
-                                                                    Type
-                                                                </span>
+                                                                    <span className="history-label">
+                                                                        Type
+                                                                    </span>
 
                                                                     <span className="history-old">
-                                                                    {history.oldType}
-                                                                </span>
+                                                                        {history.oldType}
+                                                                    </span>
 
                                                                     <i className="bi bi-arrow-right"></i>
 
                                                                     <span className="history-new">
-                                                                    {history.newType}
-                                                                </span>
+                                                                        {history.newType}
+                                                                    </span>
 
                                                                 </div>
                                                             )}
@@ -534,19 +533,19 @@ const TransactionList = () => {
                                                             history.newNote && (
                                                                 <div className="history-change">
 
-                                                                <span className="history-label">
-                                                                    Note
-                                                                </span>
+                                                                    <span className="history-label">
+                                                                        Note
+                                                                    </span>
 
                                                                     <span className="history-old">
-                                                                    {history.oldNote || 'Empty'}
-                                                                </span>
+                                                                        {history.oldNote || 'Empty'}
+                                                                    </span>
 
                                                                     <i className="bi bi-arrow-right"></i>
 
                                                                     <span className="history-new">
-                                                                    {history.newNote || 'Empty'}
-                                                                </span>
+                                                                        {history.newNote || 'Empty'}
+                                                                    </span>
 
                                                                 </div>
                                                             )}
@@ -555,23 +554,23 @@ const TransactionList = () => {
                                                             history.newTransactionDate && (
                                                                 <div className="history-change">
 
-                                                                <span className="history-label">
-                                                                    Date
-                                                                </span>
+                                                                    <span className="history-label">
+                                                                        Date
+                                                                    </span>
 
                                                                     <span className="history-old">
-                                                                    {formatDate(
-                                                                        history.oldTransactionDate
-                                                                    )}
-                                                                </span>
+                                                                        {formatDate(
+                                                                            history.oldTransactionDate
+                                                                        )}
+                                                                    </span>
 
                                                                     <i className="bi bi-arrow-right"></i>
 
                                                                     <span className="history-new">
-                                                                    {formatDate(
-                                                                        history.newTransactionDate
-                                                                    )}
-                                                                </span>
+                                                                        {formatDate(
+                                                                            history.newTransactionDate
+                                                                        )}
+                                                                    </span>
 
                                                                 </div>
                                                             )}

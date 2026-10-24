@@ -54,7 +54,7 @@ const Register = () => {
                 {/* --- LEFT BRAND BANNER --- */}
                 <div className="fin-login-banner">
                     <div className="brand-logo">
-                        <i className="bi bi-wallet2"></i> FINWEB
+                        <i className="bi bi-wallet2"></i> FinSmartWallet
                     </div>
                     <div className="banner-content">
                         <h2>Start Your Financial Journey</h2>
