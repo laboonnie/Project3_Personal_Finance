@@ -95,14 +95,31 @@
     box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
 }
 
-/* ==================== FORM ==================== */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(32,43,54,.42);
+    backdrop-filter: blur(4px);
+}
+.modal-content {
+    width: min(560px, calc(100vw - 32px)) !important;
+    max-height: calc(100vh - 40px) !important;
+    overflow-y: auto;
+    box-sizing: border-box !important;
+    padding: 24px !important;
+    background: #fff !important;
+    border-radius: 20px !important;
+    box-shadow: 0 18px 50px rgba(36,46,54,.13) !important;
+}
 .investment-form-container {
-    margin-bottom: 28px;
-    padding: 24px;
-    background: #f8fafc;
-    border-radius: 20px;
-    border: 1px solid #e2e8f0;
-    animation: slideDown 0.3s ease;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-bottom: 0 !important;
 }
 
 @keyframes slideDown {
