@@ -142,13 +142,19 @@ namespace Project3_Personal_Finance.Controllers
                     var mailMessage = new MailMessage
                     {
                         From = new MailAddress(fromEmail, "Finance App Support"),
-                        Subject = "Yêu cầu đặt lại mật khẩu - Personal Finance",
+                        Subject = "Reset Your Finance App Password",
                         Body = $@"
-                    <h3>Xin chào {user.Name},</h3>
-                    <p>Bạn vừa yêu cầu đặt lại mật khẩu cho tài khoản Personal Finance.</p>
-                    <p>Vui lòng bấm vào liên kết dưới đây để tiến hành đặt mật khẩu mới (Liên kết có hiệu lực trong 15 phút):</p>
-                    <p><a href='{resetLink}' style='background-color: #3182ce; color: white; padding: 10px 15px; text-decoration: none; border-radius: 5px; display: inline-block;'>Đặt lại mật khẩu</a></p>
-                    <p>Nếu bạn không thực hiện yêu cầu này, vui lòng bỏ qua email này.</p>",
+                    <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; color: #1f2937;'>
+                      <h2 style='color: #2563eb;'>Reset Your Password</h2>
+                      <p>Hello {user.Name},</p>
+                      <p>You requested a password reset for your Finance App account.</p>
+                      <p>Click the button below to create a new password. This link expires in 15 minutes.</p>
+                      <p style='margin: 24px 0;'>
+                        <a href='{resetLink}' style='background-color: #2563eb; color: #ffffff; padding: 12px 20px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: 600;'>Reset Password</a>
+                      </p>
+                      <p>If you did not request this reset, you can safely ignore this email.</p>
+                      <p style='font-size: 12px; color: #6b7280;'>For security, do not share this link with anyone.</p>
+                    </div>",
                         IsBodyHtml = true,
                     };
 
@@ -156,11 +162,16 @@ namespace Project3_Personal_Finance.Controllers
                     await smtpClient.SendMailAsync(mailMessage);
                 }
 
-                return Ok(new { message = "Email hướng dẫn đặt lại mật khẩu đã được gửi. Vui lòng kiểm tra hộp thư!" });
+                return Ok(new { message = "Password reset instructions have been sent. Please check your inbox!" });
             }
             catch (Exception ex)
             {
-                return BadRequest(new { message = $"Lỗi khi gửi email: {ex.Message}" });
+                if (ex is SmtpException smtpEx)
+                {
+                    Console.WriteLine($"SMTP status: {smtpEx.StatusCode}");
+                }
+                Console.WriteLine(ex.ToString());
+                return BadRequest(new { message = "Lỗi khi gửi email: " + ex.Message });
             }
         }
 
@@ -187,7 +198,7 @@ namespace Project3_Personal_Finance.Controllers
 
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Đặt lại mật khẩu thành công! Bạn có thể đăng nhập ngay bây giờ." });
+            return Ok(new { message = "Your password has been reset successfully!" });
         }
 
         private int GetCurrentUserId()

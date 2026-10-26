@@ -302,7 +302,7 @@ const InvestmentList = () => {
         return () => controller.abort();
     }, [selectedStock]);
 
-    const formatMoney = (amount) => new Intl.NumberFormat('en-US').format(amount || 0) + '$';
+    const formatMoney = (amount) => new Intl.NumberFormat('vi-VN').format(amount || 0) + 'đ';
     const handleSelectStock = (stock) => {
         setSelectedStock(stock);
         setSearchQuery('');
@@ -1485,20 +1485,24 @@ const InvestmentList = () => {
             )}
 
             {showForm && (
-                <InvestmentForm
-                    key={initialAsset?.symbol || 'manual'}
-                    initialAsset={initialAsset}
-                    allowedJars={allowedJars}
-                    onSuccess={() => {
-                        setShowForm(false);
-                        setInitialAsset(null);
-                        setRefresh(prev => !prev);
-                    }}
-                    onCancel={() => {
-                        setShowForm(false);
-                        setInitialAsset(null);
-                    }}
-                />
+                <div className="modal-overlay" onClick={() => { setShowForm(false); setInitialAsset(null); }}>
+                    <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                        <InvestmentForm
+                            key={initialAsset?.symbol || 'manual'}
+                            initialAsset={initialAsset}
+                            allowedJars={allowedJars}
+                            onSuccess={() => {
+                                setShowForm(false);
+                                setInitialAsset(null);
+                                setRefresh(prev => !prev);
+                            }}
+                            onCancel={() => {
+                                setShowForm(false);
+                                setInitialAsset(null);
+                            }}
+                        />
+                    </div>
+                </div>
             )}
 
             <div className="investment-dashboard-grid">
@@ -1634,7 +1638,7 @@ const InvestmentList = () => {
                                         tickLine={false}
                                         width={70}
                                         tick={{ fill: '#94a3b8', fontSize: 11 }}
-                                        tickFormatter={value => `${new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(value)}$`}
+                                        tickFormatter={value => `${new Intl.NumberFormat('vi-VN', { notation: 'compact', maximumFractionDigits: 1 }).format(value)}đ`}
                                     />
                                     <Tooltip
                                         labelFormatter={(_, payload) => payload?.[0]?.payload?.date

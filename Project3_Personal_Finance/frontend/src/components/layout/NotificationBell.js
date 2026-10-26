@@ -1,7 +1,29 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { notificationApi } from '../../api/notificationApi';
+import api from '../../api/api';
 import './notification.css';
+
+const DISPLAY_TITLES = {
+    'Auto-pay failed: G:3': 'Auto-payment Failed — Insufficient Funds',
+    'Auto-pay failed: D:2': 'Auto-payment Failed — No Payment Source',
+    'DueAlert:DEBT_DUE:2': 'Debt Payment Due Soon',
+    'DueAlert:GOAL_DUE:3': 'Financial Goal Deadline Reminder'
+};
+
+const getDisplayTitle = (title, status) => {
+    if (title.startsWith('Auto-pay failed: G:')) return 'Auto-payment Failed — Insufficient Funds';
+    if (title.startsWith('Auto-pay failed: D:')) return 'Auto-payment Failed — No Payment Source';
+    const dueMatch = title.match(/^DueAlert:(DEBT_DUE|GOAL_DUE):/);
+    if (dueMatch) {
+        const type = dueMatch[1];
+        if (status === 'overdue') {
+            return type === 'DEBT_DUE' ? 'Debt Payment Overdue' : 'Financial Goal Overdue';
+        }
+        return type === 'DEBT_DUE' ? 'Debt Payment Due Soon' : 'Financial Goal Deadline Reminder';
+    }
+    return title;
+};
 
 export default function NotificationBell() {
     const [open, setOpen] = useState(false);
@@ -20,6 +42,8 @@ export default function NotificationBell() {
         }
     }, []);
 
+    const [dueStatusMap, setDueStatusMap] = useState({});
+
     const loadNotifications = useCallback(async () => {
         setLoading(true);
         setError('');
@@ -27,6 +51,17 @@ export default function NotificationBell() {
         try {
             const response = await notificationApi.getAll();
             setItems(response.data || []);
+            try {
+                const dueRes = await api.get('/DueAlerts');
+                const map = {};
+                (dueRes.data || []).forEach(item => {
+                    const type = item.kind === 'Debt' ? 'DEBT_DUE' : 'GOAL_DUE';
+                    map[`${type}:${item.entityId}`] = item.status;
+                });
+                setDueStatusMap(map);
+            } catch (e) {
+                // ignore
+            }
         } catch (err) {
             setError('Unable to load notifications.');
         } finally {
@@ -171,7 +206,7 @@ export default function NotificationBell() {
                                     }}
                                 >
                                     <span className="notification-item-content">
-                                        <strong>{item.title}</strong>
+                                        <strong>{getDisplayTitle(item.title, dueStatusMap[item.title.replace('DueAlert:', '')])}</strong>
                                         <span>{item.message}</span>
                                         <small>{formatDate(item.createdAt)}</small>
                                     </span>
